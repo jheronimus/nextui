@@ -160,7 +160,6 @@ enum
 #define HDMI_SIZE	FIXED_SIZE
 #endif
 
-#ifndef BTN_A // prevent collisions with input.h in keymon
 // TODO: doesn't this belong in api.h? it's meaningless without PAD_*
 enum {
 	BTN_ID_NONE = -1,
@@ -197,6 +196,8 @@ enum {
 
 	BTN_ID_COUNT,
 };
+
+#ifndef BTN_A // prevent collisions with input.h in keymon
 enum {
 	BTN_NONE		= 0,
 	BTN_DPAD_UP 	= 1 << BTN_ID_DPAD_UP,

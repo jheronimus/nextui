@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <dlfcn.h>
 #include <string.h>
-#include <linux/input.h>
 #include <tinyalsa/mixer.h>
 
 #include "displaycal.h"
@@ -261,30 +260,6 @@ void turboL1(int);
 void turboL2(int);
 void turboR1(int);
 void turboR2(int);
-
-static int getInt(const char* path) {
-	int i = 0;
-	FILE *file = fopen(path, "r");
-	if (file != NULL) {
-		if (fscanf(file, "%i", &i) != 1) i = 0;
-		fclose(file);
-	}
-	return i;
-}
-
-static void putFile(const char* path, const char* contents) {
-	FILE* file = fopen(path, "w");
-	if (file) {
-		fputs(contents, file);
-		fclose(file);
-	}
-}
-
-static void putInt(const char* path, int value) {
-	char buffer[16];
-	snprintf(buffer, sizeof(buffer), "%d", value);
-	putFile(path, buffer);
-}
 
 static int peekVersion(const char *filename) {
 	int version = 0;

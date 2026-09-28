@@ -1,34 +1,21 @@
 ---
-# Build the Alpine image for every supported board.
-#
-# Named alpine-*.yml because that is the one path outside alpine/ where
-# we are allowed to add files: GitHub only reads workflows from the repo root,
-# and upstream NextUI has no file by this name, so a future upstream release can
-# never conflict with it. alpine/check-upstream.sh enforces both
-# halves of that rule and runs first.
-#
-# Runner: ubuntu-24.04-arm. This is the whole reason the build has no
-# cross-toolchain stage -- the runner is already aarch64, the target is aarch64,
-# and the payload is compiled natively inside the aarch64 musl container. No
-# qemu, no emulation. On an x86 runner the same Makefile would add
-# --platform linux/arm64 and pay the emulation cost instead.
-
-name: Alpine image
+name: Build & Release NextUI
 
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
     paths:
       - 'alpine/**'
       - 'workspace/alpine/**'
       - 'Taskfile.yml'
-      - '.github/workflows/alpine-*.yml'
+      - '.github/workflows/build.yml'
   pull_request:
     paths:
       - 'alpine/**'
       - 'workspace/alpine/**'
       - 'Taskfile.yml'
-      - '.github/workflows/alpine-*.yml'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       board:
@@ -39,12 +26,16 @@ on:
         description: Force a kernel rebuild
         type: boolean
         default: false
+      publish_release:
+        description: Publish as GitHub Release
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: alpine-build-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -53,14 +44,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # check-upstream.sh diffs against the v6.14.0 tag
+          fetch-depth: 0
 
-      # fetch-depth: 0 brings history but not reliably tags, and the base tag is
-      # an absolute requirement for the whole upstream check. Fetch every tag
-      # rather than naming v6.14.0 here, so the script stays the single source of
-      # truth for which base it diffs against and the two cannot drift.
       - name: Fetch tags
         run: git fetch --force --tags origin
 
@@ -70,10 +57,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           version: 3.53.1
 
-      # Pin shellcheck. The distro package drifts (Ubuntu 24.04 ships 0.9.0,
-      # local dev is often much newer) and the two disagree on severity
-      # classification, so an unpinned `apt-get install shellcheck` makes CI
-      # fail on findings that never reproduce locally.
       - name: Install shellcheck
         run: |
           set -euo pipefail
@@ -82,8 +65,6 @@ jobs:
             | sudo tar -xJ --strip-components=1 -C /usr/local/bin shellcheck-v${ver}/shellcheck
           shellcheck --version
 
-      # Runs before the expensive build: a wrong package name otherwise only
-      # shows up minutes into a container build, on the runner.
       - name: Check package names
         run: task check-packages
 
@@ -98,13 +79,14 @@ jobs:
       fail-fast: false
       matrix:
         board: [h700, rk3566]
+    if: inputs.board == '' || inputs.board == matrix.board
     env:
       BOARD: ${{ matrix.board }}
       FORCE_KERNEL_REBUILD: ${{ inputs.kernel && '1' || '0' }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v4
 
       - name: Install go-task
         uses: arduino/setup-task@v2
@@ -113,15 +95,10 @@ jobs:
           version: 3.53.1
 
       - name: Free disk space
-        # The kernel tree plus a rootfs needs more room than a fresh runner has.
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
 
-      # hashFiles and runner are only available in step contexts, never in a
-      # workflow- or job-level `env` block. Referencing them there fails
-      # validation and the run dies with no jobs created, which is a needlessly
-      # confusing failure to debug.
       - name: Restore cache
         uses: actions/cache@v4
         with:
@@ -132,13 +109,6 @@ jobs:
           restore-keys: |
             alpine-${{ runner.arch }}-
 
-      # One task, not four steps. CI should exercise exactly the path a person
-      # runs locally, otherwise the two drift and CI stops proving anything.
-      #
-      # This is the long step: ~30min/board cold, much quicker once ccache and
-      # the downloaded sources are restored above. It runs the whole chain --
-      # builder, then alpine/ (kernel + rootfs), then workspace/alpine/ (the
-      # NextUI port compiled against that rootfs), then genimage packaging.
       - name: Build
         run: task build BOARD=${{ matrix.board }}
 
@@ -151,3 +121,40 @@ jobs:
             alpine/out/${{ matrix.board }}/*.tar.zst
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: Publish Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Release Tag
+        id: release-tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev-$(date +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: nextui-alpine-*
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release-tag.outputs.tag }}
+          files: |
+            dist/*.img.zst
+            dist/*.tar.zst
+          generate_release_notes: true
+          make_latest: "true"
