@@ -21,7 +21,7 @@ set -eu
 
 # --- Configuration ---------------------------------------------------------
 
-REPO="jheronimus/minime"
+REPO="jheronimus/nextui"
 RELEASE="testing"
 SDCARD="/mnt/sdcard"
 UPDATE_DIR="${SDCARD}/.minime/update"
@@ -34,7 +34,7 @@ TRAITS_FILE="${SDCARD}/.minime/traits"
 # --- Helpers --------------------------------------------------------------
 
 usage() {
-	echo "Usage: ${0##*/} [alpine|buildroot] [minui|allium|muos|blast16]" >&2
+	echo "Usage: ${0##*/} [alpine|buildroot] [nextui|minui|allium|muos|blast16]" >&2
 	exit 1
 }
 
@@ -167,14 +167,14 @@ while [ $# -gt 0 ]; do
 		alpine | buildroot)
 			TARGET="${arg}"
 			;;
-		minui | allium | muos | blast16)
+		nextui | minui | allium | muos | blast16)
 			UI="${arg}"
 			;;
 		arc)
 			UI="blast16"
 			;;
 		*)
-			die "unsupported argument '$1' (expected alpine, buildroot, minui, allium, muos, or blast16)"
+			die "unsupported argument '$1' (expected alpine, buildroot, nextui, minui, allium, muos, or blast16)"
 			;;
 		esac
 		shift
@@ -190,7 +190,7 @@ FROM_TARGET="$(detect_target)"
 FROM_UI="$(installed_ui)"
 
 [ -n "${TARGET}" ] || TARGET="${FROM_TARGET}"
-[ -n "${UI}" ] || UI="${FROM_UI:-minui}"
+[ -n "${UI}" ] || UI="${FROM_UI:-nextui}"
 
 case "${TARGET}" in
 alpine | buildroot) ;;
@@ -198,8 +198,8 @@ alpine | buildroot) ;;
 esac
 
 case "${UI}" in
-minui | allium | muos | blast16) ;;
-*) die "unsupported UI '${UI}' (expected minui, allium, muos, or blast16)" ;;
+nextui | minui | allium | muos | blast16) ;;
+*) die "unsupported UI '${UI}' (expected nextui, minui, allium, muos, or blast16)" ;;
 esac
 
 log "board=${BOARD} target=${TARGET} (installed: ${FROM_TARGET}) ui=${UI} (installed: ${FROM_UI:-unknown})"
@@ -207,8 +207,13 @@ log "board=${BOARD} target=${TARGET} (installed: ${FROM_TARGET}) ui=${UI} (insta
 [ -x /usr/bin/curl ] || die "curl is not available on this image"
 [ -d "${SDCARD}" ] || die "no SD card at ${SDCARD}"
 
-ARCHIVE="${UPDATE_DIR}/minime-${TARGET}-${BOARD}-${UI}.tar.zst"
-URL="https://github.com/${REPO}/releases/download/${RELEASE}/minime-${TARGET}-${BOARD}-${UI}.tar.zst"
+if [ "${UI}" = "nextui" ]; then
+	ARCHIVE="${UPDATE_DIR}/nextui-${TARGET}-${BOARD}.tar.zst"
+	URL="https://github.com/${REPO}/releases/download/${RELEASE}/nextui-${TARGET}-${BOARD}.tar.zst"
+else
+	ARCHIVE="${UPDATE_DIR}/minime-${TARGET}-${BOARD}-${UI}.tar.zst"
+	URL="https://github.com/jheronimus/minime/releases/download/${RELEASE}/minime-${TARGET}-${BOARD}-${UI}.tar.zst"
+fi
 
 log "Checking ${URL}"
 mkdir -p "${UPDATE_DIR}"
@@ -262,7 +267,7 @@ sleep 1
 # apps/ + Roms/ + Saves/ + BIOS/; muOS lives under .muos/. Remove the old
 # UI's top-level dirs so a UI switch does not leave stale binaries.
 case "${FROM_UI:-${UI}}" in
-minui) rm -rf "${SDCARD}/.system" ;;
+nextui | minui) rm -rf "${SDCARD}/.system" ;;
 allium)
 	rm -rf "${SDCARD}/.ui" "${SDCARD}/.allium" \
 		"${SDCARD}/RetroArch" "${SDCARD}/apps"
@@ -278,7 +283,7 @@ unzstd -c "${ARCHIVE}" | tar -xf - -C "${SDCARD}"
 
 # Verify the payload landed before removing the archive.
 case "${UI}" in
-minui)
+nextui | minui)
 	[ -f "${SDCARD}/.system/version.txt" ] ||
 		die "install incomplete: .system/version.txt missing; leaving archive at ${ARCHIVE}"
 	;;

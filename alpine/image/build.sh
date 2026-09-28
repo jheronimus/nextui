@@ -194,6 +194,7 @@ JSON
 
 PKG_NAME="nextui-alpine-${BOARD}-${NEXTUI_RELEASE}"
 (cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
+cp -f "${OUTPUT_DIR}/${PKG_NAME}.tar.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.tar.zst"
 log_stage "update package: ${OUTPUT_DIR}/${PKG_NAME}.tar.zst"
 
 # --- 4. Boot script and device config ---------------------------------------
@@ -292,4 +293,5 @@ genimage --rootpath "${ROOTPATH_TMP}" --tmppath "${WORK_TMP}/genimage.tmp" \
 	--config "${ROOTPATH_TMP}/genimage.cfg"
 zstd -q -9 -f "${OUTPUT_DIR}/${PKG_NAME}.img" -o "${OUTPUT_DIR}/${PKG_NAME}.img.zst"
 rm -f "${OUTPUT_DIR}/${PKG_NAME}.img"
+cp -f "${OUTPUT_DIR}/${PKG_NAME}.img.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.img.zst"
 log_stage "image: ${OUTPUT_DIR}/${PKG_NAME}.img.zst"
