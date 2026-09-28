@@ -240,6 +240,11 @@ if [ -d "$BOOTLOADER_DIR" ]; then
 	if [ "${BOARD}" = "h700" ]; then
 		stage_bootloader_file "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl.bin" \
 			"${BINARIES_DIR}/" || true
+		# Staged, not flashed. boards/h700/genimage.cfg puts the LPDDR4 build
+		# at offset 8K; this LPDDR3 build sits on the FAT partition as a
+		# fallback that initramfs-init.sh only swaps in after measuring
+		# vdd-dram at exactly 1200mV. Inert on DDR4 hardware such as the
+		# RG35XX SP v1, where that regulator reads 1100mV.
 		stage_bootloader_file "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl-ddr3.bin" \
 			"${STAGE_DIR}/.minime/u-boot-ddr3.bin" || true
 	else

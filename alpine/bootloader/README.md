@@ -29,11 +29,22 @@ e64a358992760e5fc8f132e11848f7236050146ebab34c387b5fe6b918c608ec  h700/out/u-boo
 b5b180b03bcd58bdd546e0311e6daf6bbb14e888c33aff1783063fbba0f3629d  rk3566/out/u-boot.itb
 ```
 
-The two h700 files are the same size but not the same bytes. Minime builds both
-from the same u-boot tree; `-ddr3` is the variant for DDR3 boards. RG35XX SP
-(RG35XX-SP-v1) is an LPDDR3 part, and `alpine/image/build.sh` stages the `-ddr3`
-image as `.minime/u-boot-ddr3.bin` on the SD card for the bootloader to pick up.
-Both are kept so the same image works on either memory type.
+The two h700 files are the same size but not the same bytes. They are separate
+builds from the same u-boot tree:
+
+- `u-boot-sunxi-with-spl.bin` — the default, from `anbernic_rg35xx_h700_defconfig`,
+  built for **LPDDR4** (DCDC3=1100mV). This is the one that goes into the image at
+  offset 8K, via `boards/h700/genimage.cfg`.
+- `u-boot-sunxi-with-spl-ddr3.bin` — from `anbernic_rg35xx_h700_lpddr3_defconfig`,
+  for **LPDDR3** parts (DCDC3=1200mV). It is *not* flashed; it is staged on the
+  FAT partition as `.minime/u-boot-ddr3.bin`.
+
+The DDR3 image is staged but not used on an LPDDR4 device. `initramfs-init.sh`
+reads the actual `vdd-dram` regulator voltage at first boot and only overwrites
+the on-disk U-Boot when it measures exactly 1200mV, so on LPDDR4 hardware the
+swap never triggers. That logic is byte-identical to Minime's.
+
+RG35XX SP v1 is DDR4, so the image it gets is the correct one either way.
 
 To refresh after a Minime u-boot change, re-download the artifact and re-check
 the hashes above.
