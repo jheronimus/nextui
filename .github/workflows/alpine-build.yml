@@ -55,6 +55,13 @@ jobs:
         with:
           fetch-depth: 0 # check-upstream.sh diffs against the v6.14.0 tag
 
+      # fetch-depth: 0 brings history but not reliably tags, and the base tag is
+      # an absolute requirement for the whole upstream check. Fetch every tag
+      # rather than naming v6.14.0 here, so the script stays the single source of
+      # truth for which base it diffs against and the two cannot drift.
+      - name: Fetch tags
+        run: git fetch --force --tags origin
+
       - name: Install go-task
         uses: arduino/setup-task@v2
         with:
