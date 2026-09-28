@@ -173,10 +173,17 @@ if [ -d "${STAGE_DIR}/SYSTEM" ]; then
 	rm -rf "${STAGE_DIR}/SYSTEM"
 fi
 if [ -d "${STAGE_DIR}/EXTRAS" ]; then
-	rm -rf "${STAGE_DIR}/Tools"
-	mv "${STAGE_DIR}/EXTRAS/Tools" "${STAGE_DIR}/Tools" 2>/dev/null || true
+	cp -R "${STAGE_DIR}/EXTRAS/." "${STAGE_DIR}/"
 	rm -rf "${STAGE_DIR}/EXTRAS"
 fi
+chmod +x "${STAGE_DIR}/.system/alpine/paks/MinUI.pak/launch.sh" 2>/dev/null || true
+
+cat <<'EOF' >"${STAGE_DIR}/.minime/ui.env"
+UI_NAME="NextUI"
+UI_BIN="/mnt/sdcard/.system/alpine/paks/MinUI.pak/launch.sh"
+UI_PROCESSES="nextui.elf minarch.elf keymon.elf batmon.elf"
+UI_STOP_CMD="killall -9 nextui.elf minarch.elf keymon.elf batmon.elf"
+EOF
 
 NEXTUI_COMMIT="$(git -C "$NEXTUI_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 cat <<JSON >"${STAGE_DIR}/.minime/manifest.json"
@@ -265,20 +272,20 @@ VFAT_MB=$((STAGE_MB + 256))
 dd if=/dev/zero of="${BINARIES_DIR}/userdata.vfat" bs=1M count="${VFAT_MB}" status=none
 mkdosfs -F 32 -s 32 -n nextui "${BINARIES_DIR}/userdata.vfat"
 [ -f "${STAGE_DIR}/boot.scr" ] && MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" "${STAGE_DIR}/boot.scr" ::boot.scr
-for item in .minime .system Tools; do
+for item in .minime .system; do
 	if [ -e "${STAGE_DIR}/${item}" ]; then
 		if MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" -s "${STAGE_DIR}/${item}" ::; then
 			MTOOLS_SKIP_CHECK=1 mattrib -i "${BINARIES_DIR}/userdata.vfat" +h "::${item}" || true
 		fi
 	fi
 done
-# Anything else in the stage (BASE/, BOOT/ etc. from the NextUI payload).
+# Anything else in the stage (Tools, Emus, Bios, Roms, etc.).
 for item in "${STAGE_DIR}"/*; do
 	[ -e "$item" ] || continue
 	b="$(basename "$item")"
 	[ "$b" = "boot.scr" ] && continue
 	case "$b" in
-	.minime | .system | Tools) continue ;;
+	.minime | .system) continue ;;
 	esac
 	MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" -s "$item" ::
 done

@@ -4,6 +4,7 @@
 ///////////////////////////////
 
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 
 //////////////////////////////////////
 // Display (Native panel & layout)
@@ -43,14 +44,6 @@ int MINIME_traitAvailable(const char *value);
 #define HDMI_SIZE (HDMI_PITCH * gpu_hdmi_height)
 
 //////////////////////////////////////
-// Hardware Acceleration (GLES / KMS)
-
-SDL_GLContext PLAT_initGLContext(int major, int minor, int gles);
-void PLAT_quitGLContext(void);
-void PLAT_swapGL(void);
-void *PLAT_getGLProcAddress(const char *proc);
-
-//////////////////////////////////////
 // Gamepad & Button Mapping
 
 int PLAT_is6Button(void);
@@ -76,7 +69,8 @@ int PLAT_hasRightStick(void);
 #define BTN_FN3 BTN_NONE
 #define BTN_FN3_NAME ""
 
-#include <stdbool.h>
+//////////////////////////////////////
+// Hardware & Peripheral Capabilities
 
 bool PLAT_hasBluetooth(void);
 bool PLAT_hasWifi(void);

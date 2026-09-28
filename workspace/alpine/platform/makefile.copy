@@ -86,6 +86,42 @@ $(PLATFORM):
 		"$(shell cd $(NEXTUI_ROOT) && make --no-print-directory name)" \
 		"$(shell cd $(NEXTUI_ROOT) && git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
 		> $(SYS)/version.txt
-	@echo "  (version.txt staged; image/build.sh installs it to /etc/nextui-version)"
+	@echo "==> emulation cores"
+	@if [ -d $(P)/cores/output ]; then \
+		for core in $(P)/cores/output/*_libretro.so; do \
+			[ -f "$$core" ] || continue; \
+			name="$$(basename "$$core")"; \
+			case "$$name" in \
+				fceumm_libretro.so|gambatte_libretro.so|gpsp_libretro.so|picodrive_libretro.so|snes9x_libretro.so|pcsx_rearmed_libretro.so) \
+					cp -f "$$core" $(SYS)/cores/ ;; \
+				*) \
+					;; \
+			esac; \
+		done; \
+		[ -f $(P)/cores/output/a5200_libretro.so ] && cp -f $(P)/cores/output/a5200_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/A5200.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/prosystem_libretro.so ] && cp -f $(P)/cores/output/prosystem_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/A7800.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/stella2014_libretro.so ] && cp -f $(P)/cores/output/stella2014_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/A2600.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/handy_libretro.so ] && cp -f $(P)/cores/output/handy_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/LYNX.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/fake08_libretro.so ] && cp -f $(P)/cores/output/fake08_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/P8.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/mgba_libretro.so ] && cp -f $(P)/cores/output/mgba_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/MGBA.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/mgba_libretro.so ] && cp -f $(P)/cores/output/mgba_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/SGB.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/mednafen_pce_fast_libretro.so ] && cp -f $(P)/cores/output/mednafen_pce_fast_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PCE.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/pokemini_libretro.so ] && cp -f $(P)/cores/output/pokemini_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PKM.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/race_libretro.so ] && cp -f $(P)/cores/output/race_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/NGP.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/race_libretro.so ] && cp -f $(P)/cores/output/race_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/NGPC.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/fbneo_libretro.so ] && cp -f $(P)/cores/output/fbneo_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/FBN.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/mednafen_supafaust_libretro.so ] && cp -f $(P)/cores/output/mednafen_supafaust_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/SUPA.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/mednafen_vb_libretro.so ] && cp -f $(P)/cores/output/mednafen_vb_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/VB.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/cap32_libretro.so ] && cp -f $(P)/cores/output/cap32_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/CPC.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/puae2021_libretro.so ] && cp -f $(P)/cores/output/puae2021_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PUAE.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/prboom_libretro.so ] && cp -f $(P)/cores/output/prboom_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PRBOOM.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/vice_x64_libretro.so ] && cp -f $(P)/cores/output/vice_x64_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/C64.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/vice_x128_libretro.so ] && cp -f $(P)/cores/output/vice_x128_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/C128.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/vice_xplus4_libretro.so ] && cp -f $(P)/cores/output/vice_xplus4_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PLUS4.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/vice_xpet_libretro.so ] && cp -f $(P)/cores/output/vice_xpet_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/PET.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/vice_xvic_libretro.so ] && cp -f $(P)/cores/output/vice_xvic_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/VIC.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/bluemsx_libretro.so ] && cp -f $(P)/cores/output/bluemsx_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/MSX.pak/ 2>/dev/null || true; \
+		[ -f $(P)/cores/output/gearcoleco_libretro.so ] && cp -f $(P)/cores/output/gearcoleco_libretro.so $(BUILD)/EXTRAS/Emus/$(PLATFORM)/COLECO.pak/ 2>/dev/null || true; \
+	fi
 
 	@echo "assembled $(SYS)"

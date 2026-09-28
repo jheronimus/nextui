@@ -168,6 +168,10 @@ payload-components:
 	$(MAKE) -C $(WORKSPACE_DIR)/all/libgametimedb PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametimectl PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametime PLATFORM=$(PLATFORM)
+ifdef COMPILE_CORES
+	@echo "==> cores"
+	$(MAKE) -C $(PORT_DIR)/cores PLATFORM=$(PLATFORM)
+endif
 
 # Assemble the compiled pieces into build/. This is our platform/makefile.copy,
 # replacing the ~50 hardcoded `cp` lines in NextUI's top-level makefile, which

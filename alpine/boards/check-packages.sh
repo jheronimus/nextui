@@ -39,7 +39,7 @@ fetch_index() {
 	else
 		mkdir -p "${ALPINE_PKG_CACHE}"
 		url="${MIRROR}/${BRANCH}/${repo}/${ARCH}/APKINDEX.tar.gz"
-		if ! curl -fsSL --retry 3 -o "${tgz}" "${url}"; then
+		if ! curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 -o "${tgz}" "${url}"; then
 			echo "check-packages: WARNING: cannot fetch ${url}, skipping ${repo}" >&2
 			return 0
 		fi
