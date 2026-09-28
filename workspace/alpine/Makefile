@@ -41,7 +41,12 @@ SUPPORTED_BOARDS := h700 rk3566
 BOARD ?= h700
 
 # The builder image. Overridable so a fork can build its own.
-BUILDER_IMAGE ?= ghcr.io/ilembitov/nextui-alpine-builder:latest
+#
+# Deliberately NOT registry-qualified. A ghcr.io/... name that is not present
+# locally makes the container engine try to pull it, and a build then fails with
+# an opaque 403 from the registry instead of the real cause. A bare local name
+# cannot be pulled, so a missing image is an obvious local error instead.
+BUILDER_IMAGE ?= nextui-alpine-builder:local
 
 # On an arm64 host (GitHub's ubuntu-24.04-arm runner) passing --platform
 # linux/arm64 makes crun reject the image with "unknown version specified".
@@ -180,8 +185,11 @@ image:
 		--payload-dir /nextui/releases \
 		--nextui-release "$(NEXTUI_RELEASE)")
 
+# Build with the same engine that `in_container` runs with. Hardcoding docker
+# here put the image in docker's store while PODMAN_CMD preferred podman, so the
+# run found nothing and tried to pull the image from a registry instead.
 builder:
-	docker build -t $(BUILDER_IMAGE) --platform linux/arm64 $(ALPINE_DIR)/container
+	$(PODMAN_CMD) build -t $(BUILDER_IMAGE) $(PLATFORM_ARGS) $(ALPINE_DIR)/container
 
 clean:
 	rm -rf $(WORKSPACE_DIR)/build $(NEXTUI_ROOT)/releases
