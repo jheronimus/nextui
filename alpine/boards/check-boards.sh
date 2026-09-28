@@ -103,6 +103,25 @@ for board in $BOARDS; do
 		continue
 	fi
 
+	# --- bootloader blobs ------------------------------------------------
+	# These are vendored, not built (alpine/bootloader/README.md). Require them
+	# here because their absence does not fail the image build loudly enough:
+	# genimage still produces a .img.zst that simply cannot boot, which is the
+	# most expensive way to find out.
+	boot_dir="$(dirname "$ROOT")/bootloader/$board/out"
+	if [ "$board" = "h700" ]; then
+		boot_files="u-boot-sunxi-with-spl.bin u-boot-sunxi-with-spl-ddr3.bin"
+	else
+		boot_files="idbloader.img u-boot.itb"
+	fi
+	for bf in $boot_files; do
+		if [ ! -f "$boot_dir/$bf" ]; then
+			fail "missing vendored bootloader $boot_dir/$bf (see alpine/bootloader/README.md)"
+		elif [ ! -s "$boot_dir/$bf" ]; then
+			fail "bootloader $boot_dir/$bf is empty"
+		fi
+	done
+
 	# --- kernel config fragments ------------------------------------------
 	for cfg in tiny-base.config tiny-panfrost.config "tiny-$board.config"; do
 		path="$dir/$cfg"

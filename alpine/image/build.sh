@@ -94,7 +94,7 @@ ALPINE_DIR="${ALPINE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 NEXTUI_ROOT="${NEXTUI_ROOT:-$(cd "${ALPINE_DIR}/.." && pwd)}"
 BOARD_DIR="${ALPINE_DIR}/boards/${BOARD}"
 COMMON_DIR="${ALPINE_DIR}/boards/common"
-BOOTLOADER_DIR="${NEXTUI_ROOT}/workspace/alpine/bootloader/${BOARD}/out"
+BOOTLOADER_DIR="${ALPINE_DIR}/bootloader/${BOARD}/out"
 
 [ -d "$BOARD_DIR" ] || {
 	echo "ERROR: no board dir $BOARD_DIR" >&2
@@ -217,25 +217,38 @@ echo 1 >"${STAGE_DIR}/.minime/config/bluetooth/enabled"
 
 # --- 5. Bootloader blobs -----------------------------------------------------
 
-# NOTE: the bootloader is not built by this repo yet (see alpine/bootloader/).
-# Prebuilt blobs are staged here by hand or by CI so image assembly can be
-# tested independently of the U-Boot build.
+# The bootloader is not built here. The blobs are vendored under
+# alpine/bootloader/<board>/out/ -- see alpine/bootloader/README.md for
+# provenance and licensing -- so image assembly needs no u-boot toolchain.
+stage_bootloader_file() {
+	src="$1"
+	dst="$2"
+	if [ ! -f "${src}" ]; then
+		echo "WARNING: ${src##*/} not found in ${BOOTLOADER_DIR}; image will not be bootable" >&2
+		return 1
+	fi
+	if ! cp -f "${src}" "${dst}"; then
+		# Distinct from "missing": a copy failure is a permissions or space
+		# problem, and reporting it as a missing file sends you hunting for
+		# the wrong thing.
+		echo "ERROR: failed to copy ${src} to ${dst}" >&2
+		return 1
+	fi
+}
+
 if [ -d "$BOOTLOADER_DIR" ]; then
 	if [ "${BOARD}" = "h700" ]; then
-		[ -f "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl.bin" ] &&
-			cp -f "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl.bin" "${BINARIES_DIR}/" ||
-			echo "WARNING: u-boot-sunxi-with-spl.bin not in ${BOOTLOADER_DIR}" >&2
-		[ -f "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl-ddr3.bin" ] &&
-			cp -f "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl-ddr3.bin" "${STAGE_DIR}/.minime/u-boot-ddr3.bin"
+		stage_bootloader_file "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl.bin" \
+			"${BINARIES_DIR}/" || true
+		stage_bootloader_file "${BOOTLOADER_DIR}/u-boot-sunxi-with-spl-ddr3.bin" \
+			"${STAGE_DIR}/.minime/u-boot-ddr3.bin" || true
 	else
 		for f in idbloader.img u-boot.itb; do
-			[ -f "${BOOTLOADER_DIR}/${f}" ] &&
-				cp -f "${BOOTLOADER_DIR}/${f}" "${BINARIES_DIR}/" ||
-				echo "WARNING: ${f} not in ${BOOTLOADER_DIR}" >&2
+			stage_bootloader_file "${BOOTLOADER_DIR}/${f}" "${BINARIES_DIR}/" || true
 		done
 	fi
 else
-	echo "NOTE: ${BOOTLOADER_DIR} does not exist; image will be built without bootloader blobs." >&2
+	echo "ERROR: ${BOOTLOADER_DIR} does not exist; image will not be bootable" >&2
 fi
 
 # --- 6. Format FAT32 userdata and run genimage ------------------------------

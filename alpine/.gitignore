@@ -3,19 +3,19 @@
 # Upstream NextUI's own .gitignore is not modified (this fork makes zero edits
 # to NextUI files), so everything we generate is ignored here instead. A
 # .gitignore applies to its own directory and everything below it, so this
-# covers workspace/alpine/ without touching the repo root.
+# covers alpine/ without touching the repo root.
 
 # abuild/abuild working dirs
 aports/*/src
 aports/*/pkg
-out/
+
+# Build output tree. Anchored with a leading slash on purpose: a bare `out/`
+# matches any directory named out at any depth, which silently swallowed the
+# vendored bootloader blobs in bootloader/<board>/out/.
+/out/
 
 # fetched sources and toolchain checkouts
 dl/
-bootloader/*/out/*
-bootloader/*/out/*.img
-bootloader/*/out/*.itb
-bootloader/*/out/*.bin
 
 # kernel build tree
 build-bootloader-tmp/
@@ -32,3 +32,15 @@ local-repo/
 
 # the vendored board scripts are Minime's; keep our own additions executable
 !boards/*.sh
+
+# ── the vendored bootloader blobs are NOT build artifacts ───────────────────
+# alpine/bootloader/<board>/out/ holds committed third-party binaries, not
+# anything this repo generates -- see alpine/bootloader/README.md for provenance
+# and licensing. We do not build u-boot, so these must be tracked or every image
+# build warns about a missing bootloader and emits something unbootable.
+#
+# These negations must stay LAST: the *.img rule above would otherwise re-ignore
+# idbloader.img, and git cannot re-include a file inside an ignored directory
+# unless the directory itself is un-ignored first.
+!bootloader/
+!bootloader/**
