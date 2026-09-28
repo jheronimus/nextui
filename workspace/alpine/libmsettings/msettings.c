@@ -1,15 +1,15 @@
 // NextUI Alpine platform libmsettings
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <dlfcn.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <tinyalsa/mixer.h>
+#include <unistd.h>
 
 #include "displaycal.h"
 #include "msettings.h"
@@ -37,7 +37,7 @@ typedef struct SettingsV4 {
 	int speaker;
 	int mute;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV4;
 
 typedef struct SettingsV5 {
@@ -48,7 +48,7 @@ typedef struct SettingsV5 {
 	int speaker;
 	int mute;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV5;
 
 typedef struct SettingsV6 {
@@ -62,7 +62,7 @@ typedef struct SettingsV6 {
 	int saturation;
 	int exposure;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV6;
 
 typedef struct SettingsV7 {
@@ -81,7 +81,7 @@ typedef struct SettingsV7 {
 	int mutedsaturation;
 	int mutedexposure;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV7;
 
 typedef struct SettingsV8 {
@@ -101,7 +101,7 @@ typedef struct SettingsV8 {
 	int toggled_exposure;
 	int toggled_volume;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV8;
 
 typedef struct SettingsV9 {
@@ -131,7 +131,7 @@ typedef struct SettingsV9 {
 	int turbo_r1;
 	int turbo_r2;
 	int unused[2];
-	int jack; 
+	int jack;
 } SettingsV9;
 
 typedef struct SettingsV10 {
@@ -161,7 +161,7 @@ typedef struct SettingsV10 {
 	int turbo_r1;
 	int turbo_r2;
 	int unused[2];
-	int jack; 
+	int jack;
 	int audiosink;
 } SettingsV10;
 
@@ -235,7 +235,7 @@ static Settings DefaultSettings = {
 	.displaycal_green_gain = DISPLAYCAL_DEFAULT_GREEN_GAIN,
 	.displaycal_blue_gain = DISPLAYCAL_DEFAULT_BLUE_GAIN,
 };
-static Settings* settings;
+static Settings *settings;
 
 #define SHM_KEY "/SharedSettings"
 static char SettingsPath[256];
@@ -320,9 +320,7 @@ void InitSettings(void) {
 	}
 }
 
-int InitializedSettings(void) {
-	return (settings != NULL);
-}
+int InitializedSettings(void) { return (settings != NULL); }
 
 void QuitSettings(void) {
 	if (settings) {
@@ -356,75 +354,57 @@ static inline void SaveSettings(void) {
 
 static inline void applyDisplayCalSettings(void) {
 	if (settings && settings->displaycal_enabled) {
-		SetRawDisplayCal(1, settings->displaycal_red_gain, settings->displaycal_green_gain, settings->displaycal_blue_gain);
+		SetRawDisplayCal(1, settings->displaycal_red_gain, settings->displaycal_green_gain,
+						 settings->displaycal_blue_gain);
 	}
 }
 
 // Getters
 int GetBrightness(void) {
 	if (!settings) return SETTINGS_DEFAULT_BRIGHTNESS;
-	if (settings->mute && GetMutedBrightness() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedBrightness();
+	if (settings->mute && GetMutedBrightness() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedBrightness();
 	return settings->brightness;
 }
 
 int GetColortemp(void) {
 	if (!settings) return SETTINGS_DEFAULT_COLORTEMP;
-	if (settings->mute && GetMutedColortemp() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedColortemp();
+	if (settings->mute && GetMutedColortemp() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedColortemp();
 	return settings->colortemperature;
 }
 
 int GetVolume(void) {
 	if (!settings) return SETTINGS_DEFAULT_VOLUME;
-	if (settings->mute && GetMutedVolume() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedVolume();
-	if (settings->jack || settings->audiosink != AUDIO_SINK_DEFAULT)
-		return settings->headphones;
+	if (settings->mute && GetMutedVolume() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedVolume();
+	if (settings->jack || settings->audiosink != AUDIO_SINK_DEFAULT) return settings->headphones;
 	return settings->speaker;
 }
 
 int GetContrast(void) {
 	if (!settings) return SETTINGS_DEFAULT_CONTRAST;
-	if (settings->mute && GetMutedContrast() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedContrast();
+	if (settings->mute && GetMutedContrast() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedContrast();
 	return settings->contrast;
 }
 
 int GetSaturation(void) {
 	if (!settings) return SETTINGS_DEFAULT_SATURATION;
-	if (settings->mute && GetMutedSaturation() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedSaturation();
+	if (settings->mute && GetMutedSaturation() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedSaturation();
 	return settings->saturation;
 }
 
 int GetExposure(void) {
 	if (!settings) return SETTINGS_DEFAULT_EXPOSURE;
-	if (settings->mute && GetMutedExposure() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return GetMutedExposure();
+	if (settings->mute && GetMutedExposure() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) return GetMutedExposure();
 	return settings->exposure;
 }
 
-int GetDisplayCalEnabled(void) {
-	return settings ? settings->displaycal_enabled : 0;
-}
-int GetDisplayCalRedGain(void) {
-	return settings ? settings->displaycal_red_gain : 100;
-}
-int GetDisplayCalGreenGain(void) {
-	return settings ? settings->displaycal_green_gain : 100;
-}
-int GetDisplayCalBlueGain(void) {
-	return settings ? settings->displaycal_blue_gain : 100;
-}
+int GetDisplayCalEnabled(void) { return settings ? settings->displaycal_enabled : 0; }
+int GetDisplayCalRedGain(void) { return settings ? settings->displaycal_red_gain : 100; }
+int GetDisplayCalGreenGain(void) { return settings ? settings->displaycal_green_gain : 100; }
+int GetDisplayCalBlueGain(void) { return settings ? settings->displaycal_blue_gain : 100; }
 
-int GetJack(void) {
-	return settings ? settings->jack : 0;
-}
+int GetJack(void) { return settings ? settings->jack : 0; }
 
-int GetAudioSink(void) {
-	return settings ? settings->audiosink : AUDIO_SINK_DEFAULT;
-}
+int GetAudioSink(void) { return settings ? settings->audiosink : AUDIO_SINK_DEFAULT; }
 
 int GetHDMI(void) {
 	if (gpu_hdmi_state_path[0]) {
@@ -441,9 +421,7 @@ int GetHDMI(void) {
 	return MINIME_isHDMIConnected();
 }
 
-int GetMute(void) {
-	return settings ? settings->mute : 0;
-}
+int GetMute(void) { return settings ? settings->mute : 0; }
 
 int GetMutedBrightness(void) { return settings ? settings->toggled_brightness : 0; }
 int GetMutedColortemp(void) { return settings ? settings->toggled_colortemperature : 0; }
@@ -516,7 +494,8 @@ void SetDisplayCalEnabled(int is_enabled) {
 	if (is_enabled)
 		applyDisplayCalSettings();
 	else if (was_enabled)
-		SetRawDisplayCal(0, settings->displaycal_red_gain, settings->displaycal_green_gain, settings->displaycal_blue_gain);
+		SetRawDisplayCal(0, settings->displaycal_red_gain, settings->displaycal_green_gain,
+						 settings->displaycal_blue_gain);
 	SaveSettings();
 }
 
@@ -568,9 +547,7 @@ void SetAudioSink(int value) {
 	SetVolume(GetVolume());
 }
 
-void SetHDMI(int value) {
-	(void)value;
-}
+void SetHDMI(int value) { (void)value; }
 
 void SetMute(int value) {
 	if (!settings) return;
@@ -596,22 +573,102 @@ void SetMute(int value) {
 	turboR2(settings->mute);
 }
 
-void SetMutedBrightness(int value) { if (settings) { settings->toggled_brightness = value; SaveSettings(); } }
-void SetMutedColortemp(int value) { if (settings) { settings->toggled_colortemperature = value; SaveSettings(); } }
-void SetMutedContrast(int value) { if (settings) { settings->toggled_contrast = value; SaveSettings(); } }
-void SetMutedSaturation(int value) { if (settings) { settings->toggled_saturation = value; SaveSettings(); } }
-void SetMutedExposure(int value) { if (settings) { settings->toggled_exposure = value; SaveSettings(); } }
-void SetMutedVolume(int value) { if (settings) { settings->toggled_volume = value; SaveSettings(); } }
-void SetMuteDisablesDpad(int value) { if (settings) { settings->disable_dpad_on_mute = value; SaveSettings(); } }
-void SetMuteEmulatesJoystick(int value) { if (settings) { settings->emulate_joystick_on_mute = value; SaveSettings(); } }
-void SetMuteTurboA(int value) { if (settings) { settings->turbo_a = value; SaveSettings(); } }
-void SetMuteTurboB(int value) { if (settings) { settings->turbo_b = value; SaveSettings(); } }
-void SetMuteTurboX(int value) { if (settings) { settings->turbo_x = value; SaveSettings(); } }
-void SetMuteTurboY(int value) { if (settings) { settings->turbo_y = value; SaveSettings(); } }
-void SetMuteTurboL1(int value) { if (settings) { settings->turbo_l1 = value; SaveSettings(); } }
-void SetMuteTurboL2(int value) { if (settings) { settings->turbo_l2 = value; SaveSettings(); } }
-void SetMuteTurboR1(int value) { if (settings) { settings->turbo_r1 = value; SaveSettings(); } }
-void SetMuteTurboR2(int value) { if (settings) { settings->turbo_r2 = value; SaveSettings(); } }
+void SetMutedBrightness(int value) {
+	if (settings) {
+		settings->toggled_brightness = value;
+		SaveSettings();
+	}
+}
+void SetMutedColortemp(int value) {
+	if (settings) {
+		settings->toggled_colortemperature = value;
+		SaveSettings();
+	}
+}
+void SetMutedContrast(int value) {
+	if (settings) {
+		settings->toggled_contrast = value;
+		SaveSettings();
+	}
+}
+void SetMutedSaturation(int value) {
+	if (settings) {
+		settings->toggled_saturation = value;
+		SaveSettings();
+	}
+}
+void SetMutedExposure(int value) {
+	if (settings) {
+		settings->toggled_exposure = value;
+		SaveSettings();
+	}
+}
+void SetMutedVolume(int value) {
+	if (settings) {
+		settings->toggled_volume = value;
+		SaveSettings();
+	}
+}
+void SetMuteDisablesDpad(int value) {
+	if (settings) {
+		settings->disable_dpad_on_mute = value;
+		SaveSettings();
+	}
+}
+void SetMuteEmulatesJoystick(int value) {
+	if (settings) {
+		settings->emulate_joystick_on_mute = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboA(int value) {
+	if (settings) {
+		settings->turbo_a = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboB(int value) {
+	if (settings) {
+		settings->turbo_b = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboX(int value) {
+	if (settings) {
+		settings->turbo_x = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboY(int value) {
+	if (settings) {
+		settings->turbo_y = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboL1(int value) {
+	if (settings) {
+		settings->turbo_l1 = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboL2(int value) {
+	if (settings) {
+		settings->turbo_l2 = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboR1(int value) {
+	if (settings) {
+		settings->turbo_r1 = value;
+		SaveSettings();
+	}
+}
+void SetMuteTurboR2(int value) {
+	if (settings) {
+		settings->turbo_r2 = value;
+		SaveSettings();
+	}
+}
 
 #define INPUTD_PATH "/tmp/trimui_inputd"
 #define INPUTD_DPAD_PATH "/tmp/trimui_inputd/input_no_dpad"
@@ -643,63 +700,83 @@ void emulateJoystick(int is_muted) {
 	}
 }
 
-void turboA(int is_muted) { if (is_muted && GetMuteTurboA()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_A_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_A_PATH); } }
-void turboB(int is_muted) { if (is_muted && GetMuteTurboB()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_B_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_B_PATH); } }
-void turboX(int is_muted) { if (is_muted && GetMuteTurboX()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_X_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_X_PATH); } }
-void turboY(int is_muted) { if (is_muted && GetMuteTurboY()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_Y_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_Y_PATH); } }
-void turboL1(int is_muted) { if (is_muted && GetMuteTurboL1()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_L1_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_L1_PATH); } }
-void turboL2(int is_muted) { if (is_muted && GetMuteTurboL2()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_L2_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_L2_PATH); } }
-void turboR1(int is_muted) { if (is_muted && GetMuteTurboR1()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_R1_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_R1_PATH); } }
-void turboR2(int is_muted) { if (is_muted && GetMuteTurboR2()) { mkdir(INPUTD_PATH, 0777); close(open(INPUTD_TURBO_R2_PATH, O_RDWR | O_CREAT, 0777)); } else { unlink(INPUTD_TURBO_R2_PATH); } }
-
-int scaleBrightness(int value) {
-	if (value < 0) return 0;
-	if (value > 10) return 255;
-	int raw = 0;
-	switch (value) {
-		case 0: raw = 0; break;
-		case 1: raw = 2; break;
-		case 2: raw = 4; break;
-		case 3: raw = 8; break;
-		case 4: raw = 16; break;
-		case 5: raw = 32; break;
-		case 6: raw = 64; break;
-		case 7: raw = 96; break;
-		case 8: raw = 128; break;
-		case 9: raw = 192; break;
-		case 10: raw = 255; break;
+void turboA(int is_muted) {
+	if (is_muted && GetMuteTurboA()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_A_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_A_PATH);
 	}
-	return raw;
+}
+void turboB(int is_muted) {
+	if (is_muted && GetMuteTurboB()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_B_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_B_PATH);
+	}
+}
+void turboX(int is_muted) {
+	if (is_muted && GetMuteTurboX()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_X_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_X_PATH);
+	}
+}
+void turboY(int is_muted) {
+	if (is_muted && GetMuteTurboY()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_Y_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_Y_PATH);
+	}
+}
+void turboL1(int is_muted) {
+	if (is_muted && GetMuteTurboL1()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_L1_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_L1_PATH);
+	}
+}
+void turboL2(int is_muted) {
+	if (is_muted && GetMuteTurboL2()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_L2_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_L2_PATH);
+	}
+}
+void turboR1(int is_muted) {
+	if (is_muted && GetMuteTurboR1()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_R1_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_R1_PATH);
+	}
+}
+void turboR2(int is_muted) {
+	if (is_muted && GetMuteTurboR2()) {
+		mkdir(INPUTD_PATH, 0777);
+		close(open(INPUTD_TURBO_R2_PATH, O_RDWR | O_CREAT, 0777));
+	} else {
+		unlink(INPUTD_TURBO_R2_PATH);
+	}
 }
 
+static const int brightness_lut[] = {0, 2, 4, 8, 16, 32, 64, 96, 128, 192, 255};
+int scaleBrightness(int value) {
+	if (value <= 0) return 0;
+	if (value >= 10) return 255;
+	return brightness_lut[value];
+}
+
+static const int volume_lut[] = {0, 2, 4, 6, 8, 10, 12, 14, 17, 20, 24, 28, 33, 40, 50, 60, 70, 80, 90, 95, 100};
 int scaleVolume(int value) {
-	if (value < 0) return 0;
-	if (value > 20) return 100;
-	int raw = 0;
-	switch (value) {
-		case 0: raw = 0; break;
-		case 1: raw = 2; break;
-		case 2: raw = 4; break;
-		case 3: raw = 6; break;
-		case 4: raw = 8; break;
-		case 5: raw = 10; break;
-		case 6: raw = 12; break;
-		case 7: raw = 14; break;
-		case 8: raw = 17; break;
-		case 9: raw = 20; break;
-		case 10: raw = 24; break;
-		case 11: raw = 28; break;
-		case 12: raw = 33; break;
-		case 13: raw = 40; break;
-		case 14: raw = 50; break;
-		case 15: raw = 60; break;
-		case 16: raw = 70; break;
-		case 17: raw = 80; break;
-		case 18: raw = 90; break;
-		case 19: raw = 95; break;
-		case 20: raw = 100; break;
-	}
-	return raw;
+	if (value <= 0) return 0;
+	if (value >= 20) return 100;
+	return volume_lut[value];
 }
 
 int scaleColortemp(int value) {
@@ -748,17 +825,26 @@ void SetRawColortemp(int val) {
 
 void SetRawContrast(int val) {
 	FILE *fd = fopen("/sys/class/disp/disp/attr/enhance_contrast", "w");
-	if (fd) { fprintf(fd, "%i", val); fclose(fd); }
+	if (fd) {
+		fprintf(fd, "%i", val);
+		fclose(fd);
+	}
 }
 
 void SetRawSaturation(int val) {
 	FILE *fd = fopen("/sys/class/disp/disp/attr/enhance_saturation", "w");
-	if (fd) { fprintf(fd, "%i", val); fclose(fd); }
+	if (fd) {
+		fprintf(fd, "%i", val);
+		fclose(fd);
+	}
 }
 
 void SetRawExposure(int val) {
 	FILE *fd = fopen("/sys/class/disp/disp/attr/enhance_bright", "w");
-	if (fd) { fprintf(fd, "%i", val); fclose(fd); }
+	if (fd) {
+		fprintf(fd, "%i", val);
+		fclose(fd);
+	}
 }
 
 void SetRawDisplayCal(int enabled, int red_gain, int green_gain, int blue_gain) {
@@ -769,41 +855,54 @@ void SetRawDisplayCal(int enabled, int red_gain, int green_gain, int blue_gain) 
 	}
 }
 
+static int find_card_in_asound(const char *target) {
+	FILE *fp = fopen("/proc/asound/cards", "r");
+	if (!fp) return -1;
+	char line[256];
+	int card = -1;
+	while (fgets(line, sizeof(line), fp)) {
+		if (target && !strstr(line, target)) continue;
+		if (!target && (strstr(line, "HDMI") || strstr(line, "hdmi"))) continue;
+		if (sscanf(line, " %d ", &card) == 1) break;
+	}
+	fclose(fp);
+	return card;
+}
+
 static int get_audio_card_num(void) {
 	if (audio_card[0] && strcmp(audio_card, "default") != 0) {
 		char *end;
 		long num = strtol(audio_card, &end, 10);
 		if (*end == '\0') return (int)num;
-		FILE *fp = fopen("/proc/asound/cards", "r");
-		if (fp) {
-			char line[256];
-			while (fgets(line, sizeof(line), fp)) {
-				if (strstr(line, audio_card)) {
-					int c;
-					if (sscanf(line, " %d ", &c) == 1) {
-						fclose(fp);
-						return c;
-					}
-				}
-			}
-			fclose(fp);
-		}
+		int card = find_card_in_asound(audio_card);
+		if (card >= 0) return card;
 	}
-	FILE *fp = fopen("/proc/asound/cards", "r");
-	if (fp) {
-		char line[256];
-		while (fgets(line, sizeof(line), fp)) {
-			if (!strstr(line, "HDMI") && !strstr(line, "hdmi")) {
-				int c;
-				if (sscanf(line, " %d ", &c) == 1) {
-					fclose(fp);
-					return c;
-				}
-			}
-		}
-		fclose(fp);
+	int card = find_card_in_asound(NULL);
+	return (card >= 0) ? card : 0;
+}
+
+static int is_volume_ctl(struct mixer_ctl *ctl) {
+	if (mixer_ctl_get_type(ctl) != MIXER_CTL_TYPE_INT) return 0;
+	const char *name = mixer_ctl_get_name(ctl);
+	if (!name || strstr(name, "Switch")) return 0;
+	static const char *names[] = {"Playback", "Master", "Line Out", "PCM"};
+	for (int i = 0; i < 4; i++) {
+		if (strstr(name, names[i])) return 1;
 	}
 	return 0;
+}
+
+static struct mixer_ctl *find_mixer_ctl(struct mixer *mixer) {
+	if (audio_mixer[0]) {
+		struct mixer_ctl *ctl = mixer_get_ctl_by_name(mixer, audio_mixer);
+		if (ctl) return ctl;
+	}
+	const unsigned int count = mixer_get_num_ctls(mixer);
+	for (unsigned int i = 0; i < count; i++) {
+		struct mixer_ctl *ctl = mixer_get_ctl(mixer, i);
+		if (ctl && is_volume_ctl(ctl)) return ctl;
+	}
+	return NULL;
 }
 
 void SetRawVolume(int val) {
@@ -819,38 +918,16 @@ void SetRawVolume(int val) {
 
 	int card_num = get_audio_card_num();
 	struct mixer *mixer = mixer_open(card_num);
-	if (!mixer) {
-		mixer = mixer_open(0);
-		if (!mixer) return;
-	}
+	if (!mixer) mixer = mixer_open(0);
+	if (!mixer) return;
 
-	struct mixer_ctl *ctl = NULL;
-	if (audio_mixer[0]) {
-		ctl = mixer_get_ctl_by_name(mixer, audio_mixer);
-	}
-
-	if (!ctl) {
-		const unsigned int num_controls = mixer_get_num_ctls(mixer);
-		for (unsigned int i = 0; i < num_controls; i++) {
-			struct mixer_ctl *candidate = mixer_get_ctl(mixer, i);
-			const char *name = mixer_ctl_get_name(candidate);
-			if (!name) continue;
-			if ((strstr(name, "Playback") || strstr(name, "Master") || strstr(name, "Line Out") || strstr(name, "PCM")) &&
-			    (strstr(name, "Volume") || strstr(name, "volume") || !strstr(name, "Switch"))) {
-				if (mixer_ctl_get_type(candidate) == MIXER_CTL_TYPE_INT) {
-					ctl = candidate;
-					break;
-				}
-			}
-		}
-	}
-
+	struct mixer_ctl *ctl = find_mixer_ctl(mixer);
 	if (ctl && mixer_ctl_get_type(ctl) == MIXER_CTL_TYPE_INT) {
 		int min = mixer_ctl_get_range_min(ctl);
 		int max = mixer_ctl_get_range_max(ctl);
 		int volume = min + (val * (max - min)) / 100;
-		unsigned int num_values = mixer_ctl_get_num_values(ctl);
-		for (unsigned int i = 0; i < num_values; i++) {
+		unsigned int count = mixer_ctl_get_num_values(ctl);
+		for (unsigned int i = 0; i < count; i++) {
 			mixer_ctl_set_value(ctl, i, volume);
 		}
 	}

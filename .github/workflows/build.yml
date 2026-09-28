@@ -61,6 +61,12 @@ jobs:
             | sudo tar -xJ --strip-components=1 -C /usr/local/bin shellcheck-v${ver}/shellcheck
           shellcheck --version
 
+      - name: Install C quality tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck clang-format python3-pip
+          pip install --break-system-packages lizard
+
       - name: Check package names
         run: task check-packages
 

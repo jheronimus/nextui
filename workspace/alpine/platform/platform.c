@@ -1,6 +1,8 @@
 // minime platform
-#include <errno.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <msettings.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -8,15 +10,13 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <msettings.h>
 
-#include "defines.h"
 #include "api.h"
+#include "defines.h"
 #include "platform.h"
-#include "utils.h"
 #include "scaler.h"
 #include "traits.h"
+#include "utils.h"
 
 #include <linux/input.h>
 
@@ -26,8 +26,7 @@
 int on_hdmi = 0;
 
 static inline void load_traits(void) {
-	if (MINIME_traitsInit() != 0)
-		exit(1);
+	if (MINIME_traitsInit() != 0) exit(1);
 }
 
 static inline void ensure_traits(void) {
@@ -36,28 +35,21 @@ static inline void ensure_traits(void) {
 	}
 }
 
-static int openShortcutDevices(int* fds, size_t max_fds) {
-	if (!fds)
-		return 0;
-	const char* names[] = {
-		input_gamepad,
-		input_stick,
-		input_power,
-		input_volume,
-		input_menu,
+static int openShortcutDevices(int *fds, size_t max_fds) {
+	if (!fds) return 0;
+	const char *names[] = {
+		input_gamepad, input_stick, input_power, input_volume, input_menu,
 	};
 	int count = 0;
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]) && (size_t)count < max_fds; i++) {
 		int fd = MINIME_inputOpenByName(names[i]);
-		if (fd >= 0)
-			fds[count++] = fd;
+		if (fd >= 0) fds[count++] = fd;
 	}
 	return count;
 }
 
 static int normalizeAxis(int value, int invert) {
-	if (axis_min >= axis_center || axis_center >= axis_max)
-		return 0;
+	if (axis_min >= axis_center || axis_center >= axis_max) return 0;
 	int normalized;
 	if (value < axis_center) {
 		normalized = -((axis_center - value) * 32767) / (axis_center - axis_min);
@@ -67,10 +59,7 @@ static int normalizeAxis(int value, int invert) {
 	return invert ? -normalized : normalized;
 }
 
-
-int PLAT_getScreenRotation(void) {
-	return screen_rotation;
-}
+int PLAT_getScreenRotation(void) { return screen_rotation; }
 
 //////////////////////////////////////
 // Input Handling & Gamepad
@@ -79,8 +68,7 @@ int PLAT_getScreenRotation(void) {
 static int inputs[INPUT_COUNT];
 
 static void updateButtonState(int btn, int pressed, int id, uint32_t tick) {
-	if (btn == BTN_NONE || id < 0 || id >= BTN_ID_COUNT)
-		return;
+	if (btn == BTN_NONE || id < 0 || id >= BTN_ID_COUNT) return;
 
 	if (pressed) {
 		if ((pad.is_pressed & btn) == BTN_NONE) {
@@ -98,8 +86,7 @@ static void updateButtonState(int btn, int pressed, int id, uint32_t tick) {
 static void drainInputFd(int input) {
 	if (input < 0) return;
 	struct input_event event;
-	while (read(input, &event, sizeof(event)) == sizeof(event)) {
-	}
+	while (read(input, &event, sizeof(event)) == sizeof(event)) {}
 }
 
 static void drainAllInputs(void) {
@@ -116,7 +103,8 @@ void PLAT_initInput(void) {
 	// of initialisation and exit(1) on an empty file.
 	load_traits();
 
-	for (int i = 0; i < INPUT_COUNT; i++) inputs[i] = -1;
+	for (int i = 0; i < INPUT_COUNT; i++)
+		inputs[i] = -1;
 	openShortcutDevices(inputs, INPUT_COUNT);
 	drainAllInputs();
 }
@@ -293,12 +281,11 @@ void PLAT_initLid(void) {
 	lid.has_lid = lid_fd >= 0;
 	if (lid.has_lid) {
 		unsigned long sw[SW_MAX / 8 / sizeof(unsigned long) + 1] = {0};
-		if (ioctl(lid_fd, EVIOCGSW(sizeof(sw)), sw) >= 0)
-			lid.is_open = !((sw[0] >> SW_LID) & 1);
+		if (ioctl(lid_fd, EVIOCGSW(sizeof(sw)), sw) >= 0) lid.is_open = !((sw[0] >> SW_LID) & 1);
 	}
 }
 
-int PLAT_lidChanged(int* state) {
+int PLAT_lidChanged(int *state) {
 	if (!lid.has_lid) return 0;
 	struct input_event event;
 	while (read(lid_fd, &event, sizeof(event)) == sizeof(event)) {
@@ -318,30 +305,25 @@ int PLAT_lidChanged(int* state) {
 // Video Pipeline (KMSDRM & Scaler)
 
 static struct VID_Context {
-	SDL_Window* window;
-	SDL_Renderer* renderer;
-	SDL_Texture* texture;
-	SDL_Texture* target;
-	SDL_Texture* effect;
-	SDL_Surface* screen;
+	SDL_Window *window;
+	SDL_Renderer *renderer;
+	SDL_Texture *texture;
+	SDL_Texture *target;
+	SDL_Texture *effect;
+	SDL_Surface *screen;
 	SDL_GLContext gl_ctx;
-	GFX_Renderer* blit;
+	GFX_Renderer *blit;
 	int tex_w;
 	int tex_h;
 	int tex_p;
 	int sharpness;
 } vid;
 
-static inline int getScreenWidth(void) {
-	return on_hdmi ? gpu_hdmi_width : screen_width;
-}
+static inline int getScreenWidth(void) { return on_hdmi ? gpu_hdmi_width : screen_width; }
 
-static inline int getScreenHeight(void) {
-	return on_hdmi ? gpu_hdmi_height : screen_height;
-}
+static inline int getScreenHeight(void) { return on_hdmi ? gpu_hdmi_height : screen_height; }
 
-static void PLAT_computeRendererRects(const GFX_Renderer* renderer, SDL_Rect* src_rect,
-									  SDL_Rect* dst_rect) {
+static void PLAT_computeRendererRects(const GFX_Renderer *renderer, SDL_Rect *src_rect, SDL_Rect *dst_rect) {
 	int screen_w = getScreenWidth();
 	int screen_h = getScreenHeight();
 	int x = 0;
@@ -394,11 +376,6 @@ static void PLAT_computeRendererRects(const GFX_Renderer* renderer, SDL_Rect* sr
 	}
 }
 
-
-
-
-
-
 static int hard_scale = 4;
 
 static void resizeVideo(int w, int h, int p) {
@@ -414,15 +391,14 @@ static void resizeVideo(int w, int h, int p) {
 	SDL_DestroyTexture(vid.texture);
 	if (vid.target) SDL_DestroyTexture(vid.target);
 
-	SDL_SetHintWithPriority(SDL_HINT_RENDER_SCALE_QUALITY,
-							vid.sharpness == SHARPNESS_SOFT ? "1" : "0", SDL_HINT_OVERRIDE);
-	vid.texture =
-		SDL_CreateTexture(vid.renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, w, h);
+	SDL_SetHintWithPriority(SDL_HINT_RENDER_SCALE_QUALITY, vid.sharpness == SHARPNESS_SOFT ? "1" : "0",
+							SDL_HINT_OVERRIDE);
+	vid.texture = SDL_CreateTexture(vid.renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, w, h);
 
 	if (vid.sharpness == SHARPNESS_CRISP) {
 		SDL_SetHintWithPriority(SDL_HINT_RENDER_SCALE_QUALITY, "1", SDL_HINT_OVERRIDE);
-		vid.target = SDL_CreateTexture(vid.renderer, SDL_PIXELFORMAT_RGB565,
-									   SDL_TEXTUREACCESS_TARGET, w * hard_scale, h * hard_scale);
+		vid.target = SDL_CreateTexture(vid.renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_TARGET, w * hard_scale,
+									   h * hard_scale);
 	} else {
 		vid.target = NULL;
 	}
@@ -431,8 +407,6 @@ static void resizeVideo(int w, int h, int p) {
 	vid.tex_h = h;
 	vid.tex_p = p;
 }
-
-
 
 //////////////////////////////////////
 // Video Effects & Scanlines
@@ -455,7 +429,7 @@ static struct FX_Context {
 	.next_color = 0,
 };
 
-static void rgb565_to_rgb888(uint32_t rgb565, uint8_t* r, uint8_t* g, uint8_t* b) {
+static void rgb565_to_rgb888(uint32_t rgb565, uint8_t *r, uint8_t *g, uint8_t *b) {
 	uint8_t red = (rgb565 >> 11) & 0x1F;
 	uint8_t green = (rgb565 >> 5) & 0x3F;
 	uint8_t blue = rgb565 & 0x1F;
@@ -468,10 +442,10 @@ static void rgb565_to_rgb888(uint32_t rgb565, uint8_t* r, uint8_t* g, uint8_t* b
 typedef struct {
 	int max_scale;
 	int opacity;
-	const char* path;
+	const char *path;
 } EffectEntry;
 
-static const char* lookupEffect(const EffectEntry* table, size_t count, int scale, int* opacity) {
+static const char *lookupEffect(const EffectEntry *table, size_t count, int scale, int *opacity) {
 	for (size_t i = 0; i < count; i++) {
 		if (scale < table[i].max_scale || table[i].max_scale == 0) {
 			*opacity = table[i].opacity;
@@ -481,22 +455,14 @@ static const char* lookupEffect(const EffectEntry* table, size_t count, int scal
 	return NULL;
 }
 
-static const char* getEffectPath(int type, int scale, int* opacity) {
+static const char *getEffectPath(int type, int scale, int *opacity) {
 	static const EffectEntry line_effects[] = {
-		{3, 128, RES_PATH "/line-2.png"},
-		{4, 128, RES_PATH "/line-3.png"},
-		{5, 128, RES_PATH "/line-4.png"},
-		{6, 128, RES_PATH "/line-5.png"},
-		{8, 128, RES_PATH "/line-6.png"},
-		{0, 128, RES_PATH "/line-8.png"},
+		{3, 128, RES_PATH "/line-2.png"}, {4, 128, RES_PATH "/line-3.png"}, {5, 128, RES_PATH "/line-4.png"},
+		{6, 128, RES_PATH "/line-5.png"}, {8, 128, RES_PATH "/line-6.png"}, {0, 128, RES_PATH "/line-8.png"},
 	};
 	static const EffectEntry grid_effects[] = {
-		{3, 64, RES_PATH "/grid-2.png"},
-		{4, 112, RES_PATH "/grid-3.png"},
-		{5, 144, RES_PATH "/grid-4.png"},
-		{6, 160, RES_PATH "/grid-5.png"},
-		{8, 112, RES_PATH "/grid-6.png"},
-		{11, 144, RES_PATH "/grid-8.png"},
+		{3, 64, RES_PATH "/grid-2.png"},   {4, 112, RES_PATH "/grid-3.png"}, {5, 144, RES_PATH "/grid-4.png"},
+		{6, 160, RES_PATH "/grid-5.png"},  {8, 112, RES_PATH "/grid-6.png"}, {11, 144, RES_PATH "/grid-8.png"},
 		{0, 136, RES_PATH "/grid-11.png"},
 	};
 
@@ -507,11 +473,11 @@ static const char* getEffectPath(int type, int scale, int* opacity) {
 	return NULL;
 }
 
-static void recolorGridSurface(SDL_Surface* surface, uint16_t rgb565) {
+static void recolorGridSurface(SDL_Surface *surface, uint16_t rgb565) {
 	uint8_t r, g, b;
 	rgb565_to_rgb888(rgb565, &r, &g, &b);
 
-	uint32_t* pixels = (uint32_t*)surface->pixels;
+	uint32_t *pixels = (uint32_t *)surface->pixels;
 	int total_pixels = surface->w * surface->h;
 	for (int i = 0; i < total_pixels; i++) {
 		uint8_t a = (pixels[i] >> 24) & 0xFF;
@@ -519,8 +485,8 @@ static void recolorGridSurface(SDL_Surface* surface, uint16_t rgb565) {
 	}
 }
 
-static void applyEffectTexture(const char* effect_path, int opacity) {
-	SDL_Surface* tmp = IMG_Load(effect_path);
+static void applyEffectTexture(const char *effect_path, int opacity) {
+	SDL_Surface *tmp = IMG_Load(effect_path);
 	if (!tmp) return;
 
 	if (effect.type == EFFECT_GRID && effect.color) {
@@ -538,13 +504,11 @@ static void applyEffectTexture(const char* effect_path, int opacity) {
 }
 
 static inline int effectStateMatches(void) {
-	return effect.next_scale == effect.scale && effect.next_type == effect.type &&
-		   effect.next_color == effect.color;
+	return effect.next_scale == effect.scale && effect.next_type == effect.type && effect.next_color == effect.color;
 }
 
 static inline int effectMatchesLive(int live_scale, int live_color) {
-	return effect.type == effect.live_type && effect.scale == live_scale &&
-		   effect.color == live_color;
+	return effect.type == effect.live_type && effect.scale == live_scale && effect.color == live_color;
 }
 
 static void updateEffect(void) {
@@ -559,30 +523,25 @@ static void updateEffect(void) {
 	if (effect.type == EFFECT_NONE || effectMatchesLive(live_scale, live_color)) return;
 
 	int opacity = 128;
-	const char* effect_path = getEffectPath(effect.type, effect.scale, &opacity);
+	const char *effect_path = getEffectPath(effect.type, effect.scale, &opacity);
 	if (effect_path) {
 		applyEffectTexture(effect_path, opacity);
 	}
 }
 
-
-
-
-
-
 //////////////////////////////////////
 // Screen Presentation & Rotation
 
-void (*plat_custom_flip)(SDL_Surface* surface) = NULL;
+void (*plat_custom_flip)(SDL_Surface *surface) = NULL;
 
-static void renderCopy(SDL_Texture* texture, const SDL_Rect* src, const SDL_Rect* dst) {
+static void renderCopy(SDL_Texture *texture, const SDL_Rect *src, const SDL_Rect *dst) {
 	if (screen_rotation && !on_hdmi) {
 		int screen_w = screen_width;
 		int screen_h = screen_height;
 		int oy = (screen_w - screen_h) / 2;
 		int ox = -oy;
-		SDL_Rect target = dst ? (SDL_Rect){ox + dst->x, oy + dst->y, dst->w, dst->h}
-							  : (SDL_Rect){ox, oy, screen_w, screen_h};
+		SDL_Rect target =
+			dst ? (SDL_Rect){ox + dst->x, oy + dst->y, dst->w, dst->h} : (SDL_Rect){ox, oy, screen_w, screen_h};
 		SDL_RenderCopyEx(vid.renderer, texture, src, &target, screen_rotation, NULL, SDL_FLIP_NONE);
 	} else {
 		SDL_RenderCopy(vid.renderer, texture, src, dst);
@@ -601,7 +560,7 @@ static void flipUI(void) {
 static void flipGame(void) {
 	SDL_UpdateTexture(vid.texture, NULL, vid.blit->src, vid.blit->src_p);
 
-	SDL_Texture* target = vid.texture;
+	SDL_Texture *target = vid.texture;
 	int x = vid.blit->src_x;
 	int y = vid.blit->src_y;
 	int w = vid.blit->src_w;
@@ -635,10 +594,7 @@ static void flipGame(void) {
 	vid.blit = NULL;
 }
 
-
-int PLAT_supportsOverscan(void) {
-	return screen_aspect == MINIME_ASPECT_1x1;
-}
+int PLAT_supportsOverscan(void) { return screen_aspect == MINIME_ASPECT_1x1; }
 
 //////////////////////////////////////
 // Hardware Acceleration (EGL / OpenGL ES)
@@ -683,9 +639,7 @@ void PLAT_swapGL(void) {
 	}
 }
 
-void* PLAT_getGLProcAddress(const char* proc) {
-	return SDL_GL_GetProcAddress(proc);
-}
+void *PLAT_getGLProcAddress(const char *proc) { return SDL_GL_GetProcAddress(proc); }
 
 //////////////////////////////////////
 // UI Overlay
@@ -697,12 +651,12 @@ void* PLAT_getGLProcAddress(const char* proc) {
 #define OVERLAY_PITCH (OVERLAY_WIDTH * OVERLAY_BPP)
 #define OVERLAY_RGBA_MASK 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000
 static struct OVL_Context {
-	SDL_Surface* overlay;
+	SDL_Surface *overlay;
 } ovl;
 
-SDL_Surface* PLAT_initOverlay(void) {
-	ovl.overlay = SDL_CreateRGBSurface(SDL_SWSURFACE, SCALE2(OVERLAY_WIDTH, OVERLAY_HEIGHT),
-									   OVERLAY_DEPTH, OVERLAY_RGBA_MASK);
+SDL_Surface *PLAT_initOverlay(void) {
+	ovl.overlay =
+		SDL_CreateRGBSurface(SDL_SWSURFACE, SCALE2(OVERLAY_WIDTH, OVERLAY_HEIGHT), OVERLAY_DEPTH, OVERLAY_RGBA_MASK);
 	return ovl.overlay;
 }
 
@@ -710,9 +664,7 @@ void PLAT_quitOverlay(void) {
 	if (ovl.overlay) SDL_FreeSurface(ovl.overlay);
 }
 
-void PLAT_enableOverlay(int enable) {
-	(void)enable;
-}
+void PLAT_enableOverlay(int enable) { (void)enable; }
 
 //////////////////////////////////////
 // Wireless Networking (Wi-Fi & Bluetooth)
@@ -720,8 +672,7 @@ void PLAT_enableOverlay(int enable) {
 static int online = 0;
 static int bt_up = 0;
 
-
-const char* PLAT_getWifiInterface(void) {
+const char *PLAT_getWifiInterface(void) {
 	ensure_traits();
 	return PLAT_hasWifi() ? wifi_interface : "wlan0";
 }
@@ -738,10 +689,7 @@ static void updateWifiStatus(void) {
 	}
 }
 
-int PLAT_isOnline(void) {
-	return online;
-}
-
+int PLAT_isOnline(void) { return online; }
 
 static void updateBluetoothStatus(void) {
 	if (MINIME_traitAvailable(bluetooth_interface)) {
@@ -753,9 +701,7 @@ static void updateBluetoothStatus(void) {
 	}
 }
 
-int PLAT_isBluetoothUp(void) {
-	return bt_up;
-}
+int PLAT_isBluetoothUp(void) { return bt_up; }
 
 //////////////////////////////////////
 // Power, Battery & Thermal Management
@@ -765,7 +711,7 @@ int PLAT_isBluetoothUp(void) {
 // PLAT_getBatteryStatusFine() below, driven by the trait registry; this stays
 // as the coarse, stepped wrapper the UI expects, and keeps the Wifi/BT status
 // refresh MinUI did here.
-void PLAT_getBatteryStatus(int* is_charging, int* charge) {
+void PLAT_getBatteryStatus(int *is_charging, int *charge) {
 	if (!is_charging || !charge) return;
 
 	PLAT_getBatteryStatusFine(is_charging, charge);
@@ -789,17 +735,13 @@ void PLAT_getBatteryStatus(int* is_charging, int* charge) {
 
 void PLAT_enableBacklight(int enable) {
 	if (enable) {
-		if (MINIME_traitAvailable(screen_blank_path))
-			putInt(screen_blank_path, 0);
+		if (MINIME_traitAvailable(screen_blank_path)) putInt(screen_blank_path, 0);
 		SetBrightness(GetBrightness());
-		if (MINIME_traitAvailable(power_led_path))
-			putInt(power_led_path, 0);
+		if (MINIME_traitAvailable(power_led_path)) putInt(power_led_path, 0);
 	} else {
-		if (MINIME_traitAvailable(screen_blank_path))
-			putInt(screen_blank_path, 4);
+		if (MINIME_traitAvailable(screen_blank_path)) putInt(screen_blank_path, 4);
 		SetRawBrightness(0);
-		if (MINIME_traitAvailable(power_led_path))
-			putInt(power_led_path, 1);
+		if (MINIME_traitAvailable(power_led_path)) putInt(power_led_path, 1);
 	}
 }
 
@@ -809,8 +751,7 @@ void PLAT_powerOff(int reboot) {
 
 	SetRawVolume(MUTE_VOLUME_RAW);
 	PLAT_enableBacklight(0);
-	if (MINIME_traitAvailable(power_led_path))
-		putInt(power_led_path, 1);
+	if (MINIME_traitAvailable(power_led_path)) putInt(power_led_path, 1);
 	SND_quit();
 	VIB_quit();
 	PWR_quit();
@@ -828,14 +769,11 @@ void PLAT_powerOff(int reboot) {
 // Haptics
 
 void PLAT_setRumble(int strength) {
-	if (GetHDMI())
-		return;
-	if (!MINIME_traitAvailable(input_rumble))
-		return;
+	if (GetHDMI()) return;
+	if (!MINIME_traitAvailable(input_rumble)) return;
 
 	int fd = MINIME_inputOpenByName(input_rumble);
-	if (fd < 0)
-		return;
+	if (fd < 0) return;
 
 	struct ff_effect effect;
 	memset(&effect, 0, sizeof(effect));
@@ -846,8 +784,7 @@ void PLAT_setRumble(int strength) {
 		effect.u.rumble.weak_magnitude = 0xffff;
 	}
 	if (ioctl(fd, EVIOCSFF, &effect) < 0 && strength > 0) {
-		if (errno != ENODEV)
-			close(fd);
+		if (errno != ENODEV) close(fd);
 		return;
 	}
 	close(fd);
@@ -856,9 +793,7 @@ void PLAT_setRumble(int strength) {
 //////////////////////////////////////
 // Audio
 
-int PLAT_pickSampleRate(int requested, int max) {
-	return MIN(requested, max);
-}
+int PLAT_pickSampleRate(int requested, int max) { return MIN(requested, max); }
 
 //////////////////////////////////////
 // NextUI hooks this shim does not otherwise provide
@@ -880,7 +815,7 @@ int PLAT_pickSampleRate(int requested, int max) {
 // The trait registry gives us power_battery_sysfs and
 // power_charger_online_path; MinUI's msettings GetBattery()/GetCharging() do
 // not exist in NextUI, and reading the trait paths keeps this device-agnostic.
-void PLAT_getBatteryStatusFine(int* is_charging, int* charge) {
+void PLAT_getBatteryStatusFine(int *is_charging, int *charge) {
 	ensure_traits();
 
 	char path[MINIME_TRAIT_PATH_MAX];
@@ -903,16 +838,22 @@ void PLAT_getBatteryStatusFine(int* is_charging, int* charge) {
 
 // Coarse wrapper NextUI's API expects: a 0/10/20/.../100 ladder, because the
 // UI shows a stepped meter.
-void PLAT_getBatteryStatus(int* is_charging, int* charge) {
+void PLAT_getBatteryStatus(int *is_charging, int *charge) {
 	PLAT_getBatteryStatusFine(is_charging, charge);
 	if (!charge) return;
 
-	if (*charge > 80) *charge = 100;
-	else if (*charge > 60) *charge = 80;
-	else if (*charge > 40) *charge = 60;
-	else if (*charge > 20) *charge = 40;
-	else if (*charge > 10) *charge = 20;
-	else *charge = 10;
+	if (*charge > 80)
+		*charge = 100;
+	else if (*charge > 60)
+		*charge = 80;
+	else if (*charge > 40)
+		*charge = 60;
+	else if (*charge > 20)
+		*charge = 40;
+	else if (*charge > 10)
+		*charge = 20;
+	else
+		*charge = 10;
 }
 
 // The UDC reports "configured" once a host has enumerated us as a USB gadget.
@@ -921,30 +862,32 @@ void PLAT_getBatteryStatus(int* is_charging, int* charge) {
 int PLAT_isUSBConnected(void) {
 	ensure_traits();
 
-	DIR* dir = opendir("/sys/class/udc");
+	DIR *dir = opendir("/sys/class/udc");
 	if (!dir) return 0;
 
 	int found = 0;
 	char state[64];
-	struct dirent* e;
+	struct dirent *e;
 	while ((e = readdir(dir))) {
 		if (e->d_name[0] == '.') continue;
 		char path[MINIME_TRAIT_PATH_MAX];
 		snprintf(path, sizeof(path), "/sys/class/udc/%s/state", e->d_name);
 		getFile(path, state, sizeof(state));
-		if (strcmp(state, "configured") == 0) { found = 1; break; }
+		if (strcmp(state, "configured") == 0) {
+			found = 1;
+			break;
+		}
 	}
 	closedir(dir);
 	return found;
 }
 
-void PLAT_getOsVersionInfo(char* output_str, size_t max_len) {
+void PLAT_getOsVersionInfo(char *output_str, size_t max_len) {
 	ensure_traits();
 	// Staged by the image build. Falls back to the detected model so the field
 	// is never empty.
 	getFile("/etc/nextui-version", output_str, max_len);
-	if (!output_str[0])
-		snprintf(output_str, max_len, "NextUI %s", device_model);
+	if (!output_str[0]) snprintf(output_str, max_len, "NextUI %s", device_model);
 }
 
 // RG35XX SP and RG ARC-D have a single power LED (power_led_path), not the
@@ -958,8 +901,8 @@ void PLAT_initDefaultLeds() {
 
 // Write a value to a sysfs node. NextUI's utils.h has getFile/getInt but no
 // setter, so this is the one local helper the shim needs. Returns 0 on success.
-static int writeSysfs(const char* path, const char* value) {
-	FILE* f = fopen(path, "w");
+static int writeSysfs(const char *path, const char *value) {
+	FILE *f = fopen(path, "w");
 	if (!f) return -1;
 	int n = fprintf(f, "%s", value);
 	fclose(f);
@@ -971,12 +914,19 @@ void PLAT_setCPUSpeed(int speed) {
 	ensure_traits();
 	if (!cpu_governor_path[0] || strcmp(cpu_governor_path, "na") == 0) return;
 
-	const char* mode;
+	const char *mode;
 	switch (speed) {
-	case CPU_SPEED_AUTO: mode = "schedutil"; break;
-	case CPU_SPEED_PERFORMANCE: mode = "performance"; break;
-	case CPU_SPEED_POWERSAVE: mode = "powersave"; break;
-	default: return;
+	case CPU_SPEED_AUTO:
+		mode = "schedutil";
+		break;
+	case CPU_SPEED_PERFORMANCE:
+		mode = "performance";
+		break;
+	case CPU_SPEED_POWERSAVE:
+		mode = "powersave";
+		break;
+	default:
+		return;
 	}
 	writeSysfs(cpu_governor_path, mode);
 }
@@ -985,9 +935,8 @@ void PLAT_setCPUSpeed(int speed) {
 // PLAT_isOnline is gone on purpose: the brief is to keep NextUI's Wi-Fi
 // management, and the trait's wifi_interface still reaches it via
 // WIFI_INTERFACE in generic_wifi.c.
-void PLAT_getNetworkStatus(int* is_online) {
-	if (is_online)
-		*is_online = WIFI_connected() ? 1 : 0;
+void PLAT_getNetworkStatus(int *is_online) {
+	if (is_online) *is_online = WIFI_connected() ? 1 : 0;
 }
 
 ConnectionStrength PLAT_connectionStrength(void) {

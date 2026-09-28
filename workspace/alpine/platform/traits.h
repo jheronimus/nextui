@@ -1,8 +1,8 @@
 #ifndef MINIME_TRAITS_H
 #define MINIME_TRAITS_H
 
-#include <stddef.h>
 #include "defines.h"
+#include <stddef.h>
 
 #define MINIME_TRAIT_PATH_MAX 256
 #define MINIME_TRAIT_NAME_MAX 64
@@ -91,8 +91,8 @@ extern char input_lid[MINIME_TRAIT_NAME_MAX];
 // Public Trait APIs
 
 int MINIME_traitsInit(void);
-int MINIME_traitAvailable(const char* value);
-int MINIME_inputOpenByName(const char* expected);
+int MINIME_traitAvailable(const char *value);
+int MINIME_inputOpenByName(const char *expected);
 int MINIME_isHDMIConnected(void);
 
 #endif // MINIME_TRAITS_H

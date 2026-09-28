@@ -10,9 +10,9 @@
 #include "utils.h"
 
 #include <fcntl.h>
+#include <linux/input.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <linux/input.h>
 
 #define TRAITS_PATH "/mnt/sdcard/.minime/traits"
 #define NA "na"
@@ -91,9 +91,9 @@ typedef enum {
 } TraitType;
 
 typedef struct {
-	const char* key;
+	const char *key;
 	TraitType type;
-	void* dest;
+	void *dest;
 	size_t max_len;
 } TraitField;
 
@@ -173,31 +173,28 @@ static const TraitField TRAIT_FIELDS[] = {
 //////////////////////////////////////
 // Value Parsers & Helpers
 
-static void copyText(char* dst, size_t size, const char* src) {
-	if (!dst || !size)
-		return;
+static void copyText(char *dst, size_t size, const char *src) {
+	if (!dst || !size) return;
 	snprintf(dst, size, "%s", src ? src : "");
 }
 
-static int parseInt(const char* value) {
-	char* end;
+static int parseInt(const char *value) {
+	char *end;
 	long parsed;
 
-	if (!value || !strcmp(value, NA))
-		return -1;
+	if (!value || !strcmp(value, NA)) return -1;
 	parsed = strtol(value, &end, 10);
 	return *end ? -1 : (int)parsed;
 }
 
-static const TraitField* findField(const char* key) {
+static const TraitField *findField(const char *key) {
 	for (size_t i = 0; i < TRAIT_FIELD_COUNT; i++) {
-		if (!strcmp(key, TRAIT_FIELDS[i].key))
-			return &TRAIT_FIELDS[i];
+		if (!strcmp(key, TRAIT_FIELDS[i].key)) return &TRAIT_FIELDS[i];
 	}
 	return NULL;
 }
 
-static MinimeScreenAspect parseAspect(const char* value) {
+static MinimeScreenAspect parseAspect(const char *value) {
 	if (!value) return MINIME_ASPECT_UNKNOWN;
 	if (!strcmp(value, "4:3")) return MINIME_ASPECT_4x3;
 	if (!strcmp(value, "3:2")) return MINIME_ASPECT_3x2;
@@ -206,18 +203,17 @@ static MinimeScreenAspect parseAspect(const char* value) {
 	return MINIME_ASPECT_UNKNOWN;
 }
 
-static int setValue(const char* key, const char* value) {
-	const TraitField* field = findField(key);
-	if (!field)
-		return 0; // Unused trait, silently ignored
+static int setValue(const char *key, const char *value) {
+	const TraitField *field = findField(key);
+	if (!field) return 0; // Unused trait, silently ignored
 
 	if (field->type == TYPE_STRING) {
-		copyText((char*)field->dest, field->max_len, value);
+		copyText((char *)field->dest, field->max_len, value);
 		return 0;
 	}
 
 	if (field->type == TYPE_ASPECT) {
-		*(MinimeScreenAspect*)field->dest = parseAspect(value);
+		*(MinimeScreenAspect *)field->dest = parseAspect(value);
 		return 0;
 	}
 
@@ -226,26 +222,22 @@ static int setValue(const char* key, const char* value) {
 		fprintf(stderr, "Minime traits: invalid integer '%s' for '%s'\n", value, key);
 		return -1;
 	}
-	*(int*)field->dest = parsed;
+	*(int *)field->dest = parsed;
 	return 0;
 }
 
-int MINIME_traitAvailable(const char* value) {
-	return value && value[0] && strcmp(value, NA);
-}
+int MINIME_traitAvailable(const char *value) { return value && value[0] && strcmp(value, NA); }
 
 //////////////////////////////////////
 // Trait Validation
 
 static int validateRequiredKeys(void) {
 	const int required[] = {
-		button_keycodes[BTN_ID_DPAD_UP], button_keycodes[BTN_ID_DPAD_DOWN],
-		button_keycodes[BTN_ID_DPAD_LEFT], button_keycodes[BTN_ID_DPAD_RIGHT],
-		button_keycodes[BTN_ID_A], button_keycodes[BTN_ID_B],
-		button_keycodes[BTN_ID_X], button_keycodes[BTN_ID_Y],
-		button_keycodes[BTN_ID_START], button_keycodes[BTN_ID_SELECT],
-		button_keycodes[BTN_ID_MENU], button_keycodes[BTN_ID_POWER],
-		button_keycodes[BTN_ID_PLUS], button_keycodes[BTN_ID_MINUS]};
+		button_keycodes[BTN_ID_DPAD_UP],	button_keycodes[BTN_ID_DPAD_DOWN], button_keycodes[BTN_ID_DPAD_LEFT],
+		button_keycodes[BTN_ID_DPAD_RIGHT], button_keycodes[BTN_ID_A],		   button_keycodes[BTN_ID_B],
+		button_keycodes[BTN_ID_X],			button_keycodes[BTN_ID_Y],		   button_keycodes[BTN_ID_START],
+		button_keycodes[BTN_ID_SELECT],		button_keycodes[BTN_ID_MENU],	   button_keycodes[BTN_ID_POWER],
+		button_keycodes[BTN_ID_PLUS],		button_keycodes[BTN_ID_MINUS]};
 	for (size_t i = 0; i < sizeof(required) / sizeof(required[0]); i++) {
 		if (required[i] < 0) return 0;
 	}
@@ -253,23 +245,17 @@ static int validateRequiredKeys(void) {
 }
 
 static int validateDisplay(void) {
-	return (screen_width > 0 && screen_height > 0 &&
-			screen_rotation >= 0 &&
-			MINIME_traitAvailable(gpu_device) &&
-			MINIME_traitAvailable(screen_backlight_path) &&
-			screen_backlight_max > 0);
+	return (screen_width > 0 && screen_height > 0 && screen_rotation >= 0 && MINIME_traitAvailable(gpu_device) &&
+			MINIME_traitAvailable(screen_backlight_path) && screen_backlight_max > 0);
 }
 
 static int validateInputs(void) {
-	return (MINIME_traitAvailable(input_gamepad) &&
-			MINIME_traitAvailable(input_power) &&
-			MINIME_traitAvailable(input_volume) &&
-			validateRequiredKeys());
+	return (MINIME_traitAvailable(input_gamepad) && MINIME_traitAvailable(input_power) &&
+			MINIME_traitAvailable(input_volume) && validateRequiredKeys());
 }
 
 static int validate(void) {
-	if (!device_id[0] || !device_model[0] ||
-		!validateDisplay() || !validateInputs()) {
+	if (!device_id[0] || !device_model[0] || !validateDisplay() || !validateInputs()) {
 		fprintf(stderr, "Invalid required Minime traits in %s\n", TRAITS_PATH);
 		return -1;
 	}
@@ -280,7 +266,8 @@ static int validate(void) {
 // Initialization & Loading
 
 static void initTraitDefaults(void) {
-	for (int i = 0; i < BTN_ID_COUNT; i++) button_keycodes[i] = -1;
+	for (int i = 0; i < BTN_ID_COUNT; i++)
+		button_keycodes[i] = -1;
 	axis_lx = axis_ly = -1;
 	axis_rx = axis_ry = -1;
 	axis_min = axis_center = axis_max = -1;
@@ -300,17 +287,19 @@ static void initTraitDefaults(void) {
 	copyText(audio_mixer, sizeof(audio_mixer), "Master");
 }
 
-static char* trimWhitespace(char* str) {
-	while (isspace((unsigned char)*str)) str++;
+static char *trimWhitespace(char *str) {
+	while (isspace((unsigned char)*str))
+		str++;
 	if (*str == 0) return str;
-	char* end = str + strlen(str) - 1;
-	while (end > str && isspace((unsigned char)*end)) end--;
+	char *end = str + strlen(str) - 1;
+	while (end > str && isspace((unsigned char)*end))
+		end--;
 	end[1] = '\0';
 	return str;
 }
 
-static int parseTraitsFile(const char* path) {
-	FILE* file = fopen(path, "r");
+static int parseTraitsFile(const char *path) {
+	FILE *file = fopen(path, "r");
 	if (!file) {
 		fprintf(stderr, "Missing Minime traits: %s\n", path);
 		return -1;
@@ -318,12 +307,10 @@ static int parseTraitsFile(const char* path) {
 
 	char line[512];
 	while (fgets(line, sizeof(line), file)) {
-		char* key = trimWhitespace(line);
-		if (!key[0] || key[0] == '#' || key[0] == '[')
-			continue;
-		char* value = strchr(key, '=');
-		if (!value)
-			continue;
+		char *key = trimWhitespace(line);
+		if (!key[0] || key[0] == '#' || key[0] == '[') continue;
+		char *value = strchr(key, '=');
+		if (!value) continue;
 		*value++ = '\0';
 		if (setValue(trimWhitespace(key), trimWhitespace(value)) != 0) {
 			fclose(file);
@@ -335,20 +322,16 @@ static int parseTraitsFile(const char* path) {
 }
 
 static void deriveFallbacks(void) {
-	if (screen_padding <= 0)
-		screen_padding = (screen_width >= 720) ? 40 : 10;
-	if (screen_row_count <= 0)
-		screen_row_count = (screen_width >= 720) ? 8 : 6;
+	if (screen_padding <= 0) screen_padding = (screen_width >= 720) ? 40 : 10;
+	if (screen_row_count <= 0) screen_row_count = (screen_width >= 720) ? 8 : 6;
 }
 
 int MINIME_traitsInit(void) {
-	if (initialized)
-		return valid ? 0 : -1;
+	if (initialized) return valid ? 0 : -1;
 	initialized = 1;
 	initTraitDefaults();
 
-	if (parseTraitsFile(TRAITS_PATH) != 0)
-		return -1;
+	if (parseTraitsFile(TRAITS_PATH) != 0) return -1;
 
 	deriveFallbacks();
 
@@ -360,34 +343,27 @@ int MINIME_traitsInit(void) {
 // Hardware State Probing
 
 int MINIME_isHDMIConnected(void) {
-	if (!MINIME_traitAvailable(gpu_hdmi_state_path))
-		return 0;
+	if (!MINIME_traitAvailable(gpu_hdmi_state_path)) return 0;
 	char status[16] = "";
 	getFile(gpu_hdmi_state_path, status, sizeof(status));
 	if (status[0] != '\0') {
-		if (prefixMatch("connected", status))
-			return 1;
-		if (prefixMatch("disconnected", status) || prefixMatch("unknown", status))
-			return 0;
+		if (prefixMatch("connected", status)) return 1;
+		if (prefixMatch("disconnected", status) || prefixMatch("unknown", status)) return 0;
 	}
 	return getInt(gpu_hdmi_state_path);
 }
 
-int MINIME_inputOpenByName(const char* expected) {
-	if (!MINIME_traitAvailable(expected))
-		return -1;
+int MINIME_inputOpenByName(const char *expected) {
+	if (!MINIME_traitAvailable(expected)) return -1;
 	int fd = open(expected, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-	if (fd >= 0)
-		return fd;
+	if (fd >= 0) return fd;
 	char name[256];
 	char path[64];
 	for (int i = 0; i < 32; i++) {
 		snprintf(path, sizeof(path), "/dev/input/event%d", i);
 		fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-		if (fd < 0)
-			continue;
-		if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0 && !strcmp(name, expected))
-			return fd;
+		if (fd < 0) continue;
+		if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0 && !strcmp(name, expected)) return fd;
 		close(fd);
 	}
 	return -1;

@@ -25,7 +25,7 @@ extern int screen_row_count;
 #define PADDING (on_hdmi ? 40 : screen_padding)
 
 int PLAT_getScreenRotation(void);
-extern void (*plat_custom_flip)(SDL_Surface* surface);
+extern void (*plat_custom_flip)(SDL_Surface *surface);
 
 //////////////////////////////////////
 // HDMI Output
@@ -34,7 +34,7 @@ extern int on_hdmi;
 extern int gpu_hdmi_width;
 extern int gpu_hdmi_height;
 extern char gpu_hdmi_state_path[];
-int MINIME_traitAvailable(const char* value);
+int MINIME_traitAvailable(const char *value);
 
 #define HAS_HDMI MINIME_traitAvailable(gpu_hdmi_state_path)
 #define HDMI_WIDTH gpu_hdmi_width
@@ -48,7 +48,7 @@ int MINIME_traitAvailable(const char* value);
 SDL_GLContext PLAT_initGLContext(int major, int minor, int gles);
 void PLAT_quitGLContext(void);
 void PLAT_swapGL(void);
-void* PLAT_getGLProcAddress(const char* proc);
+void *PLAT_getGLProcAddress(const char *proc);
 
 //////////////////////////////////////
 // Gamepad & Button Mapping
@@ -81,7 +81,7 @@ int PLAT_hasRightStick(void);
 
 int PLAT_hasBluetooth(void);
 int PLAT_hasWifi(void);
-const char* PLAT_getWifiInterface(void);
+const char *PLAT_getWifiInterface(void);
 int PLAT_hasLid(void);
 
 //////////////////////////////////////

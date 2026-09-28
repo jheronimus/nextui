@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <linux/input.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -7,7 +8,6 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include <unistd.h>
-#include <linux/input.h>
 
 #include <msettings.h>
 
@@ -39,14 +39,13 @@ static pthread_t hdmi_pt;
 static pthread_t power_pt;
 static pthread_t bt_pt;
 
-static void* watchHDMI(void* arg) {
+static void *watchHDMI(void *arg) {
 	(void)arg;
 	int has_hdmi = MINIME_isHDMIConnected();
 	int had_hdmi = has_hdmi;
 	SetHDMI(has_hdmi);
 
-	if (!MINIME_traitAvailable(gpu_hdmi_state_path))
-		return NULL;
+	if (!MINIME_traitAvailable(gpu_hdmi_state_path)) return NULL;
 
 	while (1) {
 		sleep(2);
@@ -59,30 +58,25 @@ static void* watchHDMI(void* arg) {
 	return NULL;
 }
 
-static int estimateCapacityFromVoltage(const char* base_path) {
+static int estimateCapacityFromVoltage(const char *base_path) {
 	char path[MINIME_TRAIT_PATH_MAX + 32];
 	snprintf(path, sizeof(path), "%s/voltage_avg", base_path);
 	int volt = getInt(path);
-	if (volt <= 0)
-		return 0;
+	if (volt <= 0) return 0;
 	int pct = (volt - 3400000) * 100 / (4172000 - 3400000);
-	if (pct > 100)
-		return 100;
-	if (pct < 0)
-		return 0;
+	if (pct > 100) return 100;
+	if (pct < 0) return 0;
 	return pct;
 }
 
-static int getBatteryStatus(int* charging, int* capacity) {
-	if (!MINIME_traitAvailable(power_battery_sysfs) || !charging || !capacity)
-		return -1;
+static int getBatteryStatus(int *charging, int *capacity) {
+	if (!MINIME_traitAvailable(power_battery_sysfs) || !charging || !capacity) return -1;
 
 	char path[MINIME_TRAIT_PATH_MAX + 32];
 	snprintf(path, sizeof(path), "%s/capacity", power_battery_sysfs);
 	*capacity = getInt(path);
 
-	if (*capacity <= 0)
-		*capacity = estimateCapacityFromVoltage(power_battery_sysfs);
+	if (*capacity <= 0) *capacity = estimateCapacityFromVoltage(power_battery_sysfs);
 
 	if (MINIME_traitAvailable(power_charger_online_path)) {
 		*charging = getInt(power_charger_online_path);
@@ -90,9 +84,8 @@ static int getBatteryStatus(int* charging, int* capacity) {
 	}
 
 	snprintf(path, sizeof(path), "%s/status", power_battery_sysfs);
-	FILE* f = fopen(path, "r");
-	if (!f)
-		return -1;
+	FILE *f = fopen(path, "r");
+	if (!f) return -1;
 	char status[32] = "";
 	(void)fgets(status, sizeof(status), f);
 	fclose(f);
@@ -100,7 +93,7 @@ static int getBatteryStatus(int* charging, int* capacity) {
 	return 0;
 }
 
-static void* watchPower(void* arg) {
+static void *watchPower(void *arg) {
 	while (1) {
 		int charging = 0;
 		int battery = 0;
@@ -113,8 +106,8 @@ static void* watchPower(void* arg) {
 	return 0;
 }
 
-static int find_bt_sink(char* out, size_t out_size) {
-	FILE* p;
+static int find_bt_sink(char *out, size_t out_size) {
+	FILE *p;
 	char buf[1024];
 
 	out[0] = '\0';
@@ -123,10 +116,9 @@ static int find_bt_sink(char* out, size_t out_size) {
 	p = popen("gdbus call --system --dest org.bluealsa --object-path /org/bluealsa "
 			  "--method org.freedesktop.DBus.ObjectManager.GetManagedObjects 2>/dev/null",
 			  "r");
-	if (!p)
-		return 0;
+	if (!p) return 0;
 	while (fgets(buf, sizeof(buf), p)) {
-		char* dev = strstr(buf, "/dev_");
+		char *dev = strstr(buf, "/dev_");
 		if (dev) {
 			dev += 5; // skip "/dev_"
 			if (strlen(dev) >= 17) {
@@ -142,7 +134,7 @@ static int find_bt_sink(char* out, size_t out_size) {
 	return out[0] != '\0';
 }
 
-static void* watchBT(void* arg) {
+static void *watchBT(void *arg) {
 	char active[64] = "";
 	char mac[64];
 
@@ -154,8 +146,7 @@ static void* watchBT(void* arg) {
 				if (strcmp(mac, active) != 0) {
 					char cmd[512];
 
-					snprintf(cmd, sizeof(cmd), "%s start-interface bluetooth %s >/dev/null 2>&1",
-							 AUDIO_SH, mac);
+					snprintf(cmd, sizeof(cmd), "%s start-interface bluetooth %s >/dev/null 2>&1", AUDIO_SH, mac);
 					system(cmd);
 					strncpy(active, mac, sizeof(active) - 1);
 					SetBT(1);
@@ -179,22 +170,15 @@ static void* watchBT(void* arg) {
 // Input Device Management
 
 static void initInputDevices(void) {
-	const char* dev_names[] = {
-		input_gamepad,
-		input_stick,
-		input_power,
-		input_volume,
-		input_menu,
-		input_lid,
-		audio_jack_device_name,
+	const char *dev_names[] = {
+		input_gamepad, input_stick, input_power, input_volume, input_menu, input_lid, audio_jack_device_name,
 	};
 	input_count = 0;
 	for (size_t i = 0; i < sizeof(dev_names) / sizeof(dev_names[0]) &&
 					   (size_t)input_count < (sizeof(input_fds) / sizeof(input_fds[0]));
 		 i++) {
 		int fd = MINIME_inputOpenByName(dev_names[i]);
-		if (fd >= 0)
-			input_fds[input_count++] = fd;
+		if (fd >= 0) input_fds[input_count++] = fd;
 	}
 }
 
@@ -211,28 +195,26 @@ typedef struct {
 	uint32_t down_repeat_at;
 } KeymonState;
 
-static void resetState(KeymonState* state) {
+static void resetState(KeymonState *state) {
 	state->menu_pressed = 0;
 	state->up_pressed = state->up_just_pressed = 0;
 	state->down_pressed = state->down_just_pressed = 0;
 	state->up_repeat_at = state->down_repeat_at = 0;
 }
 
-static void handleKeyEvent(int code, int val, int menu_code, KeymonState* state, uint32_t now) {
+static void handleKeyEvent(int code, int val, int menu_code, KeymonState *state, uint32_t now) {
 	if (code == menu_code) {
 		state->menu_pressed = val;
 	} else if (code == button_keycodes[BTN_ID_PLUS]) {
 		state->up_pressed = state->up_just_pressed = val;
-		if (val)
-			state->up_repeat_at = now + 300;
+		if (val) state->up_repeat_at = now + 300;
 	} else if (code == button_keycodes[BTN_ID_MINUS]) {
 		state->down_pressed = state->down_just_pressed = val;
-		if (val)
-			state->down_repeat_at = now + 300;
+		if (val) state->down_repeat_at = now + 300;
 	}
 }
 
-static void pollInputFd(int fd, int menu_code, KeymonState* state, uint32_t now) {
+static void pollInputFd(int fd, int menu_code, KeymonState *state, uint32_t now) {
 	struct input_event ev;
 	while (read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
 		if (ev.type == EV_SW && ev.code == SW_HEADPHONE_INSERT) {
@@ -248,26 +230,23 @@ static void pollInputFd(int fd, int menu_code, KeymonState* state, uint32_t now)
 	}
 }
 
-static void pollInputs(int menu_code, KeymonState* state, uint32_t now) {
+static void pollInputs(int menu_code, KeymonState *state, uint32_t now) {
 	for (int i = 0; i < input_count; i++) {
-		if (input_fds[i] > 0)
-			pollInputFd(input_fds[i], menu_code, state, now);
+		if (input_fds[i] > 0) pollInputFd(input_fds[i], menu_code, state, now);
 	}
 }
 
 static void adjustVolumeOrBrightness(int is_up, int menu_pressed) {
 	if (menu_pressed) {
 		int val = GetBrightness() + (is_up ? 1 : -1);
-		if (val >= BRIGHTNESS_MIN && val <= BRIGHTNESS_MAX)
-			SetBrightness(val);
+		if (val >= BRIGHTNESS_MIN && val <= BRIGHTNESS_MAX) SetBrightness(val);
 	} else {
 		int val = GetVolume() + (is_up ? 1 : -1);
-		if (val >= VOLUME_MIN && val <= VOLUME_MAX)
-			SetVolume(val);
+		if (val >= VOLUME_MIN && val <= VOLUME_MAX) SetVolume(val);
 	}
 }
 
-static void handleButtonRepeats(KeymonState* state, uint32_t now) {
+static void handleButtonRepeats(KeymonState *state, uint32_t now) {
 	if (state->up_just_pressed || (state->up_pressed && now >= state->up_repeat_at)) {
 		adjustVolumeOrBrightness(1, state->menu_pressed);
 		if (state->up_just_pressed)
@@ -288,11 +267,10 @@ static void handleButtonRepeats(KeymonState* state, uint32_t now) {
 //////////////////////////////////////
 // Keymon Daemon Entry
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
 	(void)argc;
 	(void)argv;
-	if (MINIME_traitsInit() != 0)
-		return 1;
+	if (MINIME_traitsInit() != 0) return 1;
 	InitSettings();
 	pthread_create(&hdmi_pt, NULL, &watchHDMI, NULL);
 	pthread_create(&power_pt, NULL, &watchPower, NULL);
@@ -300,8 +278,7 @@ int main(int argc, char* argv[]) {
 
 	initInputDevices();
 
-	int menu_code = (button_keycodes[BTN_ID_MENU] >= 0 ? button_keycodes[BTN_ID_MENU]
-													   : button_keycodes[BTN_ID_SELECT]);
+	int menu_code = (button_keycodes[BTN_ID_MENU] >= 0 ? button_keycodes[BTN_ID_MENU] : button_keycodes[BTN_ID_SELECT]);
 	KeymonState state = {0};
 	uint32_t then = now_ms();
 

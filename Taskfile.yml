@@ -68,7 +68,7 @@ tasks:
 
   validate:
     desc: Run every fast check (this is the pre-push gate)
-    deps: [validate-static, check-packages]
+    deps: [validate-static, check-packages, check-c]
 
   validate-static:
     desc: Run the fast checks that need no toolchain
@@ -97,6 +97,25 @@ tasks:
           alpine/scripts/post-build.sh \
           alpine/scripts/system-image.sh \
           alpine/image/build.sh
+
+  check-c:
+    desc: Run C code quality checks on workspace/alpine (complexity <= 10, cppcheck, clang-format)
+    deps: [check-complexity, check-cppcheck, check-format]
+
+  check-complexity:
+    desc: Ensure cyclomatic complexity in workspace/alpine is <= 10
+    cmds:
+      - lizard -C 10 -w workspace/alpine
+
+  check-cppcheck:
+    desc: Run cppcheck static analysis on workspace/alpine
+    cmds:
+      - cppcheck --enable=warning,performance,portability --error-exitcode=1 -DPLATFORM=\"alpine\" -D__has_feature\(x\)=0 -I workspace/alpine/platform -I workspace/alpine/libmsettings -I workspace/all/common --suppress=missingIncludeSystem --suppress=unknownMacro workspace/alpine
+
+  check-format:
+    desc: Check C code formatting with clang-format
+    cmds:
+      - sh -c 'files=$(find workspace/alpine -name "*.c" -o -name "*.h"); if [ -n "$files" ]; then clang-format --dry-run --Werror $files; fi'
 
   # ── Payload (NextUI) ──────────────────────────────────────────────────────
   #
