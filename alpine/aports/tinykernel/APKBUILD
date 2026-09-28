@@ -44,8 +44,9 @@ rk3566 | h700) ;;
 *) echo "unsupported DTB_BOARD=$DTB_BOARD (supported: h700, rk3566)"; exit 1 ;;
 esac
 
-NEXTUI_ROOT="${NEXTUI_ROOT:-/workspace}"
-BOARDS="${NEXTUI_ROOT}/workspace/alpine/boards"
+NEXTUI_ROOT="${NEXTUI_ROOT:-/nextui}"
+ALPINE_DIR="${ALPINE_DIR:-${NEXTUI_ROOT}/alpine}"
+BOARDS="${ALPINE_DIR}/boards"
 
 # Shipped DTB list is generated from the device registry
 # (alpine/boards/<board>/traits/ -- the single source of truth for devices).
