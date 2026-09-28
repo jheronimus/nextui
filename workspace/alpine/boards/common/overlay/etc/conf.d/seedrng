@@ -1,0 +1,5 @@
+# Seed the kernel RNG from the writable SD partition. The rootfs is a
+# read-only EROFS image, so the default /var/lib/seedrng location is not
+# writable at boot. skip_credit stays unset (no) so the seed still credits
+# entropy on every boot.
+seed_dir="/mnt/sdcard/.minime/seedrng"

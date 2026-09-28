@@ -1,0 +1,67 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# dotclean: remove macOS Finder metadata from every mounted removable card
+# under /mnt on each boot — ".DS_Store", "._*" AppleDouble sidecar files, and
+# the volume-level .Spotlight-V100 / .Trashes / .fseventsd directories.
+#
+# Universal: cards are discovered by globbing /mnt/*, so adding a second SD
+# slot (e.g. /mnt/sdcard2) requires no change to this script.
+#
+# Runs early (before the UI) but the scan is detached into a background
+# worker with its own pidfile, so boot is never blocked.
+
+description="Remove macOS dot files from mounted cards"
+
+PID_FILE="/run/dotclean.pid"
+
+depend() {
+	need localmount modules
+	before ui
+}
+
+start() {
+	ebegin "Starting dotclean (background)"
+
+	# Only bother if at least one card is mounted under /mnt.
+	has_card=""
+	for mnt in /mnt/*/; do
+		[ -d "${mnt}" ] || continue
+		has_card=1
+		break
+	done
+	if [ -z "${has_card}" ]; then
+		eend 0 "no cards mounted"
+		return 0
+	fi
+
+	# Idempotency guard: never run two cleaners concurrently.
+	if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null; then
+		einfo "dotclean already running"
+		eend 0
+		return 0
+	fi
+
+	# Detached worker so boot proceeds to the UI immediately.
+	(
+		for mnt in /mnt/*/; do
+			[ -d "${mnt}" ] || continue
+			find "${mnt}" \( -name .DS_Store -o -name "._*" \) -type f -delete 2>/dev/null
+			find "${mnt}" -maxdepth 1 \( -name "FSCK*.REC" -o -name "fsck*.rec" \) -delete 2>/dev/null
+			rm -rf "${mnt}.Spotlight-V100" "${mnt}.Trashes" "${mnt}.fseventsd" 2>/dev/null
+			logger -t dotclean "cleaned ${mnt}" 2>/dev/null || true
+			sync
+		done
+		rm -f "${PID_FILE}" 2>/dev/null || true
+	) >/dev/null 2>&1 &
+	echo $! > "${PID_FILE}"
+	eend 0
+}
+
+stop() {
+	ebegin "Stopping dotclean"
+	if [ -f "${PID_FILE}" ]; then
+		kill "$(cat "${PID_FILE}" 2>/dev/null)" 2>/dev/null || true
+		rm -f "${PID_FILE}" 2>/dev/null || true
+	fi
+	eend 0
+}

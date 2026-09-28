@@ -1,0 +1,34 @@
+# shellcheck shell=sh disable=SC2034,SC2154,SC3043
+# abuild framework sets srcdir/builddir/pkgdir in the build env.
+#
+# Unmodified upstream package; APKBUILD copied from Minime. Used for .local
+# service discovery so the device is reachable by name over telnet/ssh/ftp.
+pkgname=mdnsd
+pkgver=1.2
+pkgrel=0
+pkgdesc="Embeddable Multicast DNS (mDNS/DNS-SD) daemon for .local discovery"
+url="https://github.com/troglobit/mdnsd"
+arch="aarch64"
+license="BSD-3-Clause"
+options="!strip !check"
+makedepends="
+	pkgconf
+"
+source="mdnsd-$pkgver.tar.gz::https://github.com/troglobit/mdnsd/releases/download/v$pkgver/mdnsd-$pkgver.tar.gz"
+sha512sums="88d87b9609ed3ade5fff9c1c4dc87e6215a62c09536fdee7d906854b3733309cb6101d0969d449c8227cbe92ae165c548b14e381e8d1f546cb81cec262a28121  mdnsd-1.2.tar.gz"
+
+build() {
+	./configure \
+		--build="$CBUILD" \
+		--host="$CHOST" \
+		--prefix=/usr \
+		--sbindir=/usr/sbin \
+		--libdir=/usr/lib \
+		--without-mquery
+	make
+}
+
+package() {
+	make DESTDIR="$pkgdir" install
+	rm -rf "${pkgdir:?}/usr/share"
+}

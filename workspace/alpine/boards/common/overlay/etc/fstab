@@ -1,0 +1,14 @@
+# /etc/fstab — Minime Alpine image
+#
+# /dev/mmcblk0p1 is mounted by the boot-stage initramfs at /mnt/sdcard.
+# The immutable rootfs is the EROFS image at .minime/system, also mounted
+# by the initramfs at /.  We only describe synthetic mounts here so
+# `mount -a` at boot is a no-op.
+
+/dev/root       /             erofs  ro                  0  0
+proc            /proc         proc   defaults            0  0
+sysfs           /sys          sysfs  defaults            0  0
+devpts          /dev/pts      devpts defaults,gid=5,mode=620,ptmxmode=0666 0 0
+tmpfs           /dev/shm      tmpfs  mode=1777           0  0
+tmpfs           /tmp          tmpfs  defaults,nosuid,nodev,size=32M 0  0
+tmpfs           /run          tmpfs  mode=0755,nosuid,nodev,size=16M 0  0

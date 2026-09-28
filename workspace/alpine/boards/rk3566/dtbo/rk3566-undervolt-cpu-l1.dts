@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// RK3566 CPU undervolt overlay - Level 1 (conservative).
+// Rewrites opp-microvolt for every CPU OPP in /opp-table-0.
+// Voltages adapted from ROCKNIX rk3566-undervolt-cpu-l1.dts.
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target-path = "/opp-table-0";
+		__overlay__ {
+			opp-408000000 { opp-microvolt = <800000 800000 1150000>; };
+			opp-600000000 { opp-microvolt = <800000 800000 1150000>; };
+			opp-816000000 { opp-microvolt = <800000 800000 1150000>; };
+			opp-1104000000 { opp-microvolt = <800000 800000 1150000>; };
+			opp-1416000000 { opp-microvolt = <850000 850000 1150000>; };
+			opp-1608000000 { opp-microvolt = <900000 900000 1150000>; };
+			opp-1800000000 { opp-microvolt = <950000 950000 1150000>; };
+			opp-1992000000 { opp-microvolt = <1000000 1000000 1150000>; };
+		};
+	};
+};

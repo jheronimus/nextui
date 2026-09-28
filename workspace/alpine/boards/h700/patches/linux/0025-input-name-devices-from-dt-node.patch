@@ -1,0 +1,52 @@
+From: Minime <maintainers@minime-os.local>
+Subject: [PATCH] input: name evdev devices from the DT node name
+
+DT-instantiated platform devices carry an empty pdev->name, so the
+gpio-keys, adc-joystick and adc-keys drivers register input devices with
+an empty EVIOCGNAME string. Minime UIs open input devices by the
+trait-provided names (which are the DT node names, e.g. "gpio-keys-control",
+"adc-joystick"), so name each input device from its of_node when present.
+
+Signed-off-by: Minime <maintainers@minime-os.local>
+---
+--- a/drivers/input/joystick/adc-joystick.c
++++ b/drivers/input/joystick/adc-joystick.c
+@@ -8,6 +8,7 @@
+ #include <linux/iio/iio.h>
+ #include <linux/iio/consumer.h>
+ #include <linux/module.h>
++#include <linux/of.h>
+ #include <linux/platform_device.h>
+ #include <linux/property.h>
+ 
+@@ -271,7 +272,7 @@
+ 	}
+ 
+ 	joy->input = input;
+-	input->name = pdev->name;
++	input->name = dev->of_node ? dev->of_node->name : pdev->name;
+ 	input->id.bustype = BUS_HOST;
+ 
+ 	error = adc_joystick_set_axes(dev, joy);
+--- a/drivers/input/keyboard/adc-keys.c
++++ b/drivers/input/keyboard/adc-keys.c
+@@ -148,7 +148,7 @@
+ 
+ 	input_set_drvdata(input, st);
+ 
+-	input->name = pdev->name;
++	input->name = dev->of_node ? dev->of_node->name : pdev->name;
+ 	input->phys = "adc-keys/input0";
+ 
+ 	input->id.bustype = BUS_HOST;
+--- a/drivers/input/keyboard/gpio_keys.c
++++ b/drivers/input/keyboard/gpio_keys.c
+@@ -883,7 +883,7 @@
+ 	platform_set_drvdata(pdev, ddata);
+ 	input_set_drvdata(input, ddata);
+ 
+-	input->name = pdata->name ? : pdev->name;
++	input->name = pdata->name ? : (dev->of_node ? dev->of_node->name : pdev->name);
+ 	input->phys = "gpio-keys/input0";
+ 	input->dev.parent = dev;
+ 	input->open = gpio_keys_open;

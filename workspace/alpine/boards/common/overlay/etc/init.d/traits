@@ -1,0 +1,185 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# traits: generate /mnt/sdcard/.minime/traits from the immutable
+# /usr/share/minime/traits payload bundled at build time.
+# Self-contained — no external script dependency.
+#
+# Cascade model: platform.ini holds SoC-wide defaults; each device file may
+# override any key, and panel-revision variants inherit from a base device via
+# a `parent=` key in the [device] section.  Files are merged in order
+# platform.ini -> parent chain (rootmost first) -> device file, so the last
+# value of any duplicated key wins.  The `parent` key and the [match] section
+# are meta-data and never emitted into the output file.
+
+description="Generate Minime device traits"
+
+# --- Configuration ---
+TRAITS_DIR="/usr/share/minime/traits"
+TRAITS_FILE="/mnt/sdcard/.minime/traits"
+
+# --- Helper functions ---
+
+read_match() {
+	sed -n "s/^$1=//p" "$2" | head -n 1
+}
+
+read_device_key() {
+	# value of a key in the [device] section (or any section) of a device file
+	sed -n "s/^$1=//p" "$2" | head -n 1
+}
+
+# Emit the non-meta trait lines of a file: all key=value lines outside the
+# [match] and [dts] sections, excluding the cascade `parent` key. [dts] is
+# generation metadata consumed only by traits-gen at build time, never by
+# runtime consumers of the merged traits file.
+emit_file() {
+	awk '
+		/^\[(match|dts)\]$/ { skip = 1; next }
+		/^\[/ { skip = 0; next }
+		!skip && /^[A-Za-z0-9_]+=/ && $0 !~ /^parent=/ { print }
+	' "$1"
+}
+
+# Resolve the parent chain of a device file, rootmost first.
+parent_chain() {
+	file="$1"
+	chain=""
+	while [ -n "$file" ]; do
+		chain="$file ${chain}"
+		parent="$(read_device_key parent "$file")"
+		if [ -n "$parent" ]; then
+			file="${TRAITS_DIR}/devices/${parent}.ini"
+			[ -f "$file" ] || {
+				echo "traits: ${1}: unknown parent '$parent'" >&2
+				return 1
+			}
+		else
+			file=""
+		fi
+	done
+	printf '%s\n' "$chain"
+}
+
+require_key() {
+	key="$1"
+	file="$2"
+	grep -Eq "^${key}=..*" "$file" || {
+		echo "$file: missing $key" >&2
+		return 1
+	}
+}
+
+find_device() {
+	model="$(tr -d '\000\r\n' < /proc/device-tree/model)"
+	actual_compat="$(tr '\000' '\n' < /proc/device-tree/compatible 2>/dev/null | head -n 1 || true)"
+	match=""
+
+	for file in "${TRAITS_DIR}"/devices/*.ini; do
+		[ -f "$file" ] || continue
+		expected_model="$(read_match model "$file")"
+		expected_compat="$(read_match compatible "$file")"
+		if [ "$expected_model" = "$model" ] &&
+		   { [ -z "$expected_compat" ] || [ "$expected_compat" = "$actual_compat" ]; }; then
+			[ -z "$match" ] || {
+				echo "Multiple Minime trait files match '$model'" >&2
+				return 1
+			}
+			match="$file"
+		fi
+	done
+	[ -n "$match" ] || {
+		echo "Unsupported Minime device: '$model'" >&2
+		return 1
+	}
+	printf '%s\n' "$match"
+}
+
+# Render the merged traits payload for a device file to the given output path.
+render_traits() {
+	device_file="$1"
+	output="$2"
+
+	chain="$(parent_chain "$device_file")" || exit 1
+
+	mkdir -p "${output%/*}"
+	{
+		echo "# Minime device traits"
+		emit_file "${TRAITS_DIR}/platform.ini"
+		for file in $chain; do
+			emit_file "$file"
+		done
+
+		# Resolve dynamic DRM connector status path if HDMI connector is configured
+		connector="$(read_device_key gpu_hdmi_connector "$device_file")"
+		[ -n "$connector" ] || connector="$(grep -E '^gpu_hdmi_connector=' "$output" 2>/dev/null | tail -n 1 | cut -d= -f2 || true)"
+		if [ -n "$connector" ] && [ "$connector" != "na" ]; then
+			hdmi_path="na"
+			for p in /sys/class/drm/card*-"${connector}"/status; do
+				if [ -f "$p" ]; then
+					hdmi_path="$p"
+					break
+				fi
+			done
+			echo "gpu_hdmi_state_path=$hdmi_path"
+		fi
+	} > "$output"
+}
+
+# SHA-1 of a rendered payload (marker line excluded).
+traits_hash() {
+	sha1sum "$1" | cut -d' ' -f1
+}
+
+generate_traits() {
+	device_file="${1:-$(find_device)}"
+	tmp="${TRAITS_FILE}.tmp"
+
+	render_traits "$device_file" "$tmp"
+	echo "# traits-hash $(traits_hash "$tmp")" >> "$tmp"
+	mv "$tmp" "$TRAITS_FILE"
+
+	if [ -d /mnt/sdcard ]; then
+		model="$(tr -d '\000\r\n' < /proc/device-tree/model 2>/dev/null || true)"
+		/usr/share/minime/scripts/log-boot.sh TRAITS "Model: ${model}, Device file: ${device_file##*/}" 2>/dev/null || true
+	fi
+
+	echo "Minime traits: ${device_file##*/}"
+}
+
+check_traits() {
+	device_file="$(find_device)" || exit 1
+	expected_id="$(read_device_key device_id "$device_file")"
+
+	if [ ! -f "$TRAITS_FILE" ] || \
+	   [ "$(read_device_key device_id "$TRAITS_FILE")" != "$expected_id" ] || \
+	   ! require_key gpu_device "$TRAITS_FILE" 2>/dev/null || \
+	   ! require_key device_id "$TRAITS_FILE" 2>/dev/null; then
+		generate_traits "$device_file"
+		return
+	fi
+
+	# The bundled payload is the source of truth. device_id is stable across
+	# firmware updates, so regenerate whenever the merged payload content
+	# drifted from the last generation (e.g. a trait default value change).
+	tmp="${TRAITS_FILE}.tmp"
+	render_traits "$device_file" "$tmp"
+	stored_hash="$(sed -n 's/^# traits-hash //p' "$TRAITS_FILE" | head -n 1)"
+	[ "$stored_hash" = "$(traits_hash "$tmp")" ]
+	up_to_date=$?
+	rm -f "$tmp"
+	[ "$up_to_date" -eq 0 ] || generate_traits "$device_file"
+}
+
+# --- OpenRC service ---
+
+depend() {
+	need modules
+	before ui
+	after fb-unblank
+}
+
+start() {
+	ebegin "Generating Minime traits"
+	check_traits
+	eend $?
+}

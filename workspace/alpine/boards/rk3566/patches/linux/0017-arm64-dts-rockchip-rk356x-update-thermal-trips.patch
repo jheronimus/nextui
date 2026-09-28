@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Minime <maintainers@minime-os.local>
+Date: Sun, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] arm64: dts: rockchip: rk356x: raise thermal trips for
+ passive-cooled handhelds
+
+Raise the RK356x SoC thermal trip points to the proven values for
+passive-cooled handhelds (ADR 0018): CPU passive 83/88 degC, GPU passive
+80/88 degC.  The TSADC hardware shutdown at 95 degC is untouched and
+step_wise remains the sole throttling mechanism.
+
+---
+ arch/arm64/boot/dts/rockchip/rk356x-base.dtsi | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk356x-base.dtsi b/arch/arm64/boot/dts/rockchip/rk356x-base.dtsi
+--- a/arch/arm64/boot/dts/rockchip/rk356x-base.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk356x-base.dtsi
+@@ -1578,6 +1578,6 @@
+ 			trips {
+ 				cpu_alert0: cpu_alert0 {
+-					temperature = <70000>;
++					temperature = <83000>;
+ 					hysteresis = <2000>;
+ 					type = "passive";
+ 				};
+@@ -1583,6 +1583,6 @@
+ 				};
+ 				cpu_alert1: cpu_alert1 {
+-					temperature = <75000>;
++					temperature = <88000>;
+ 					hysteresis = <2000>;
+ 					type = "passive";
+ 				};
+@@ -1614,6 +1614,6 @@
+ 			trips {
+ 				gpu_threshold: gpu-threshold {
+-					temperature = <70000>;
++					temperature = <80000>;
+ 					hysteresis = <2000>;
+ 					type = "passive";
+ 				};
+@@ -1619,6 +1619,6 @@
+ 				};
+ 				gpu_target: gpu-target {
+-					temperature = <75000>;
++					temperature = <88000>;
+ 					hysteresis = <2000>;
+ 					type = "passive";
+ 				};
+-- 
+2.34.1

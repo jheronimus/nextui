@@ -1,0 +1,157 @@
+# NextUI Alpine base package selection
+#
+# One package per line; '#' starts a comment. Installed into the Alpine rootfs
+# by the image build after the local package repo is staged.
+#
+# SHARED BY BOTH BOARDS. Minime keeps a per-board world-<board> overlay, but
+# both of theirs are empty for H700 and RK3566: the only board deltas are
+# in-kernel (DMC devfreq, PSCI idle on RK3566) and need no userspace packages.
+# We have the same two boards, so we have the same single list. Revisit only if
+# a board needs a package the other does not.
+#
+# Derived from Minime's packages/components/alpine/configs/world-common.
+# Differences are called out inline as DROP / ADD / RENAME.
+#
+# Notes carried over from upstream, because they are load-bearing:
+#   - musl replaces glibc. gcompat is intentionally omitted; anything that
+#     hard-depends on glibc does not belong on this list.
+#   - No libmali / mali-kbase. Mesa Panfrost provides GLES via DRM/GBM/KMS on
+#     both SoCs (Mali-G31 on H700, Mali-G52 on RK3566).
+
+# --- Init + userspace base -------------------------------------------------
+openrc
+eudev
+busybox
+busybox-suid
+busybox-extras
+busybox-static
+mksh
+shadow
+sudo
+tzdata
+ca-certificates
+musl-locales
+ncurses-terminfo
+gettext
+# busybox provides login/getty/autologin
+
+# --- Filesystems / partitions ----------------------------------------------
+parted
+e2fsprogs
+dosfstools
+f2fs-tools
+util-linux
+
+# --- Compression / archives ------------------------------------------------
+zstd
+xz
+lz4
+lz4-libs
+bzip2
+
+# --- Networking ------------------------------------------------------------
+iproute2
+iputils
+iproute2-minimal
+# dropbear: SSH server, enabled by default via the boot runlevel. Provides an
+# encrypted remote shell alongside telnet.
+dropbear
+
+# --- DNS / mDNS ------------------------------------------------------------
+# openresolv: iwd hands the DHCP DNS servers to it (NameResolvingService=resolvconf).
+# mdnsd announces the device as <hostname>.local so telnet/ssh/ftp are reachable
+# by name. It is built from alpine/aports/mdnsd and is listed under Local
+# packages at the bottom of this file, because build.sh builds it from source.
+openresolv
+
+# --- Wi-Fi + regulatory ----------------------------------------------------
+iwd
+wireless-regdb
+
+# --- Bluetooth (with audio sink) -------------------------------------------
+dbus
+bluez
+bluez-deprecated
+bluez-alsa
+
+# --- Audio (ALSA) ----------------------------------------------------------
+alsa-lib
+alsa-utils
+alsa-plugins
+libsamplerate
+
+# --- GLES / DRM / GBM / KMS / Vulkan (Mesa Panfrost & PanVK) --------------
+mesa
+mesa-gl
+mesa-dri-gallium
+mesa-egl
+mesa-gbm
+mesa-gles
+vulkan-loader
+mesa-vulkan-panfrost
+libdrm
+
+# --- SDL2 ------------------------------------------------------------------
+# This is the NextUI toolchain. Upstream NextUI links
+# -lSDL2_image -lSDL2_ttf -lpthread -ldl -lm -lz, so these four are load-bearing
+# and the -lz / -lpng below follow from them.
+sdl2
+sdl2_image
+sdl2_ttf
+sdl2_mixer
+
+# --- HTTP / media ----------------------------------------------------------
+curl
+ffmpeg
+
+# --- Media / runtime support ----------------------------------------------
+libpng
+zlib
+# libstdc++: C++ runtime for cores that need it.
+libstdc++
+# mimalloc: high-performance musl allocator.
+mimalloc
+
+# --- NextUI runtime requirements -------------------------------------------
+# This is the one place our package list genuinely diverges from Minime's.
+# NextUI's minarch links a decompression + CHD stack that MinUI does not, so
+# Minime has no reason to carry it. Verified against
+# workspace/all/minarch/makefile:
+#   -lmsettings -lsamplerate          (msettings built from source, see below)
+#   -lzip -lz  -llz4  (rom decompression + rewind)
+#   -lsrm        (libretro save states)
+#   -lrcheevos -lchdr -lcrypto        (RetroAchievements)
+# and makefile:115-119 copies libbz2/liblzma/libzstd/liblz4/libcrypto .so.* into
+# build/SYSTEM/$(PLATFORM)/lib, so the *runtime* shared objects must exist in
+# the rootfs, not just at link time.
+
+# zip support. Transitive for libbz2/liblzma/libzstd, and linked directly.
+libzip
+# libcrypto.so.3 for RetroAchievements.
+libcrypto3
+# NOTE: libbz2, liblzma, libzstd, liblz4 and libsamplerate are already
+# provided above by bzip2, xz, zstd, lz4 and alsa-plugins respectively.
+# Intentionally NOT apk packages -- NextUI's makefile builds these from source
+# and copies the .so into the payload:
+#   libmsettings  workspace/<board>/libmsettings
+#   libsrm        libretro-common
+#   libchdr       cloned + built at build time
+#   rcheevos      cloned + built at build time
+
+# --- Local packages (built from alpine/aports/*) ---------------------------
+# These MUST have a matching alpine/aports/<name>/APKBUILD. build.sh asserts
+# this before entering the chroot, so a typo here fails immediately with a
+# useful message instead of "unable to select packages" from deep inside apk.
+#
+# Deliberately NOT listed, though Minime's world-common does:
+#   bootsplash  Minime's own C daemon (src/bootsplash). Minime ships no
+#               LICENSE file, so we do not vendor their source. Both consumers
+#               are guarded with `if [ -x /usr/bin/bootsplash ]`
+#               (init.d/bootsplash and initramfs-init.sh), so the image boots
+#               and runs without it -- just with no early splash.
+#   remote      Minime's own C tool (src/remote), for remote screenshot and
+#               input injection. Diagnostic only; nothing in the overlay
+#               invokes it.
+# Both are additive: build the aports and re-add the line when you want them.
+fatresize
+mdnsd

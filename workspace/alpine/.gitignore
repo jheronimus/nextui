@@ -1,0 +1,34 @@
+# Build artifacts for the Alpine foundation.
+#
+# Upstream NextUI's own .gitignore is not modified (this fork makes zero edits
+# to NextUI files), so everything we generate is ignored here instead. A
+# .gitignore applies to its own directory and everything below it, so this
+# covers workspace/alpine/ without touching the repo root.
+
+# abuild/abuild working dirs
+aports/*/src
+aports/*/pkg
+out/
+
+# fetched sources and toolchain checkouts
+dl/
+bootloader/*/out/*
+bootloader/*/out/*.img
+bootloader/*/out/*.itb
+bootloader/*/out/*.bin
+
+# kernel build tree
+build-bootloader-tmp/
+
+# built images
+*.img
+*.img.zst
+*.erofs
+*.tar.zst
+*.apk
+
+# local repo index
+local-repo/
+
+# the vendored board scripts are Minime's; keep our own additions executable
+!boards/*.sh

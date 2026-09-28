@@ -1,0 +1,26 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# telnetd: passwordless telnet on TCP 23, autologin shell.
+
+description="Minime telnet daemon"
+
+command="$(command -v telnetd 2>/dev/null || echo /usr/sbin/telnetd)"
+command_args="-F -l /usr/bin/autologin -p 23"
+pidfile="/run/telnetd.pid"
+
+depend() {
+	need modules
+}
+
+start() {
+	ebegin "Starting telnetd"
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$pidfile" --exec "$command" -- $command_args
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping telnetd"
+	start-stop-daemon --stop --pidfile "$pidfile" --exec "$command"
+	eend $?
+}

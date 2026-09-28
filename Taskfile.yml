@@ -1,0 +1,198 @@
+# Taskfile for NextUI on Alpine.
+#
+# The entry point for every build and check in this repo. `make` is still the
+# tool that compiles the NextUI payload -- the per-component makefiles in
+# workspace/ are deeply idiomatic and rewriting them buys nothing -- but you
+# should not have to know that to build a release. Everything you type is
+# `task <name>`.
+#
+# Modelled on Minime's Justfile, reduced to what this fork actually has.
+#
+# Two things live here that used to be duplicated across the makefile, the CI
+# matrix and the trait registry:
+#   * the board list (h700, rk3566)
+#   * the fact that the build is Alpine + panfrost only
+# Both are now derived, not declared, wherever it is cheap to derive them.
+
+version: '3'
+
+vars:
+  # Release matrix, in order. Kept explicit rather than globbed so the CI matrix
+  # and the local default cannot drift; `task boards` cross-checks this against
+  # the trait registry, which is the real source of truth.
+  BOARDS: 'h700 rk3566'
+  BOARDS_1: 'h700'
+  MAKE: make
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  # ── Boards ────────────────────────────────────────────────────────────────
+
+  boards:
+    desc: List supported boards and the DTBs each one must ship
+    cmds:
+      - |
+        set -eu
+        for b in {{.BOARDS}}; do
+          echo "board: $b"
+          ./workspace/alpine/boards/gentraits.sh dtbs "$b" | sed 's/^/  dtb /'
+        done
+
+  devices:
+    desc: List every device in the trait registry, per board
+    cmds:
+      - |
+        set -eu
+        for b in {{.BOARDS}}; do
+          echo "board: $b"
+          for f in workspace/alpine/boards/$b/traits/devices/*.ini; do
+            [ -f "$f" ] || continue
+            id=$(sed -n 's/^device_id=//p' "$f" | head -n1)
+            model=$(sed -n 's/^device_model=//p' "$f" | head -n1)
+            parent=$(sed -n 's/^parent=//p' "$f" | head -n1)
+            [ -z "$parent" ] || parent=" (inherits $parent)"
+            printf '  %-16s %s%s\n' "$id" "$model" "$parent"
+          done
+        done
+
+  # ── Validation ────────────────────────────────────────────────────────────
+  #
+  # All of these are fast and need no toolchain, container or hardware. They are
+  # the gate that runs on every push, because everything downstream is an
+  # expensive place to discover a typo.
+
+  validate:
+    desc: Run every fast check (this is the pre-push gate)
+    deps: [validate-static, check-upstream]
+
+  validate-static:
+    desc: Run the fast checks that need no toolchain
+    deps: [check-boards, check-shell]
+
+  check-upstream:
+    desc: Assert no NextUI file is edited (the core invariant of this fork)
+    cmds:
+      - ./workspace/alpine/boards/check-upstream.sh
+
+  check-boards:
+    desc: Validate trait registry, kernel configs and firmware blobs
+    cmds:
+      - ./workspace/alpine/boards/check-boards.sh
+
+  check-shell:
+    desc: Shellcheck the scripts this repo owns
+    cmds:
+      - |
+        set -eu
+        # Vendored board scripts are Minime's and are checked upstream; only
+        # lint what we are responsible for.
+        shellcheck -s sh \
+          workspace/alpine/boards/gentraits.sh \
+          workspace/alpine/boards/check-boards.sh \
+          workspace/alpine/boards/check-upstream.sh \
+          workspace/alpine/scripts/build.sh \
+          workspace/alpine/scripts/post-build.sh \
+          workspace/alpine/scripts/system-image.sh \
+          workspace/alpine/image/build.sh
+
+  # ── Payload (NextUI) ──────────────────────────────────────────────────────
+  #
+  # Compiling NextUI for the alpine platform, then assembling and zipping the
+  # SD-card payload. This does NOT go through NextUI's top-level makefile: that
+  # hardcodes its platform list, has no `alpine` branch in `system`, and its
+  # makefile.toolchain pulls ghcr.io/loveretro/alpine-toolchain which does not
+  # exist. workspace/alpine/Makefile drives it instead, in our own container.
+  #
+  # NextUI's *component* makefiles under workspace/all/ are still used,
+  # unchanged, as leaf compilers -- they resolve $(PLATFORM) generically.
+
+  payload:
+    desc: Compile the NextUI payload for the alpine platform
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine payload'
+
+  payload-components:
+    desc: Compile only the payload binaries (no assembly, no zip)
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine payload-components'
+
+  system:
+    desc: Assemble the compiled payload into build/
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine system'
+
+  package:
+    desc: Zip build/ into releases/*.zip for the image stage
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine package'
+
+  clean:
+    desc: Clean payload, image and release artifacts
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine clean'
+
+  name:
+    desc: Print the release name this build would produce
+    cmds:
+      - '{{.MAKE}} name'
+
+  # ── Image (Alpine) ────────────────────────────────────────────────────────
+  #
+  # Two stages, deliberately separate:
+  #   components  kernel + rootfs. Slow (~30min/board), no NextUI involved.
+  #   image       genimage packaging. Fast, and needs the NextUI payload, so it
+  #               depends on `task payload`.
+  # Splitting them means a kernel rebuild is not triggered by a UI change, and
+  # an image can be rebuilt without podman.
+
+  components:
+    desc: Build the kernel and rootfs for a board (BOARD=h700|rk3566)
+    vars:
+      BOARD: '{{.BOARD | default .BOARDS_1}}'
+    cmds:
+      - |
+        set -eu
+        echo "board: {{.BOARD}}"
+        {{.MAKE}} -C workspace/alpine components BOARD={{.BOARD}}
+
+  image:
+    desc: Package the flashable .img.zst (BOARD=h700|rk3566)
+    vars:
+      BOARD: '{{.BOARD | default .BOARDS_1}}'
+    cmds:
+      - |
+        set -eu
+        release=$({{.MAKE}} name | tail -1)
+        echo "board: {{.BOARD}}  release: $release"
+        NEXTUI_RELEASE="$release" {{.MAKE}} -C workspace/alpine image BOARD={{.BOARD}}
+
+  image-all:
+    desc: Build kernel, rootfs and image for every supported board
+    cmds:
+      - |
+        set -eu
+        for b in {{.BOARDS}}; do
+          echo "=== $b ==="
+          {{.MAKE}} -C workspace/alpine components BOARD=$b
+          release=$({{.MAKE}} name | tail -1)
+          NEXTUI_RELEASE="$release" {{.MAKE}} -C workspace/alpine image BOARD=$b
+        done
+
+  builder:
+    desc: Build the Alpine builder container image locally
+    cmds:
+      - '{{.MAKE}} -C workspace/alpine builder'
+
+  # ── Device operations ─────────────────────────────────────────────────────
+
+  shell:
+    desc: 'TODO: open a shell on a connected device'
+    cmds:
+      - |
+        echo "not implemented yet: device access comes with the image build." >&2
+        exit 1

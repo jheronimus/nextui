@@ -1,0 +1,36 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# dbus: D-Bus system message bus daemon.
+
+description="D-Bus system message bus"
+
+pidfile="/run/dbus/dbus.pid"
+
+depend() {
+	need localmount
+	after fb-unblank
+}
+
+start() {
+	ebegin "Starting D-Bus system message bus"
+	mkdir -p /run/dbus
+	if [ -f "${pidfile}" ] && ! kill -0 "$(cat "${pidfile}" 2>/dev/null)" 2>/dev/null; then
+		rm -f "${pidfile}"
+	fi
+	rm -f /run/dbus/system_bus_socket
+	if command -v dbus-uuidgen >/dev/null 2>&1; then
+		dbus-uuidgen --ensure 2>/dev/null || true
+	fi
+	dbus-daemon --system --fork
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping D-Bus system message bus"
+	if [ -f "${pidfile}" ]; then
+		kill "$(cat "${pidfile}")" >/dev/null 2>&1 || true
+		rm -f "${pidfile}"
+	fi
+	rm -f /run/dbus/system_bus_socket
+	eend 0
+}

@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# fb-unblank: unblank the framebuffer so the panel lights up before
+# the UI takes over.
+
+description="Unblank framebuffer console"
+
+depend() {
+	before traits ui
+}
+
+start() {
+	if [ -w /sys/class/graphics/fb0/blank ]; then
+		printf '%s\n' 0 > /sys/class/graphics/fb0/blank 2>/dev/null || true
+	fi
+	return 0
+}

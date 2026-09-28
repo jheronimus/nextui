@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# modules: load modules from /etc/modules-load.d/*.conf
+# Load boot-time kernel modules. Uses busybox modprobe.
+
+description="Load Minime modules from /etc/modules-load.d/"
+
+depend() {
+	keyword -timeout
+}
+
+start() {
+	[ -d /etc/modules-load.d ] || return 0
+	mm_conf=""
+	mm_mod=""
+	for mm_conf in /etc/modules-load.d/*.conf; do
+		[ -f "$mm_conf" ] || continue
+		while read -r mm_mod; do
+			case "$mm_mod" in
+				\#*) continue ;;
+				"") continue ;;
+			esac
+			modprobe "$mm_mod" 2>/dev/null || true
+		done < "$mm_conf"
+	done
+	return 0
+}

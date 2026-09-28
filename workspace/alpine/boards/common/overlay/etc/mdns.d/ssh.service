@@ -1,0 +1,3 @@
+# Minime SSH (dropbear, TCP 22 — started on demand)
+type _ssh._tcp
+port 22

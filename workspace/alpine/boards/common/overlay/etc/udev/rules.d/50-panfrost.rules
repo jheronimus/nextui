@@ -1,0 +1,7 @@
+# Panfrost / DRM device permissions.
+# Panfrost device permissions.
+# Panfrost exposes the GPU through the standard DRM device node, which is
+# already world-accessible in Alpine; we still need the KMS+GBM modeset
+# clients to reach the connector/CRTC sysfs files.
+KERNEL=="renderD128", MODE="0660", GROUP="video"
+SUBSYSTEM=="drm", KERNEL=="card[0-9]*", MODE="0660", GROUP="video"

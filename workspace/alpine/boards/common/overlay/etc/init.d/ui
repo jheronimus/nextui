@@ -1,0 +1,122 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# ui: launch the UI binary (MinUI/Allium) and the headphone-jack watcher.
+# UI-agnostic — no IPC conventions, no relaunch loops.
+# UI-specific behavior (relaunch, /tmp/next, /tmp/poweroff) belongs in
+# the UI's own launch.sh, not here.
+
+description="Minime UI (MinUI/Allium)"
+
+# --- Configuration ---
+TRAITS_FILE="/mnt/sdcard/.minime/traits"
+UI_ENV_FILE="/mnt/sdcard/.minime/ui.env"
+
+# --- Helper functions ---
+
+get_trait() {
+	key="$1"
+	[ -f "$TRAITS_FILE" ] || return 0
+	grep "^${key}=" "$TRAITS_FILE" | cut -d= -f2 | tr -d '\r' || true
+}
+
+log_boot() {
+	/usr/share/minime/scripts/log-boot.sh UI "$@" 2>/dev/null || true
+}
+
+read_ui_env() {
+	key="$1"
+	[ -f "$UI_ENV_FILE" ] || return 0
+	grep "^${key}=" "$UI_ENV_FILE" | cut -d= -f2 | tr -d '\r"' || true
+}
+
+# --- OpenRC service ---
+
+depend() {
+	after modules fb-unblank traits gpudriver localmount udev udev-settle
+}
+
+start() {
+	ebegin "Starting UI"
+
+	dmesg -n 1 2>/dev/null || true
+
+	UI_NAME=$(read_ui_env UI_NAME)
+	UI_BIN=$(read_ui_env UI_BIN)
+	UI_PROCESSES=$(read_ui_env UI_PROCESSES)
+
+	audio_card=$(get_trait audio_card)
+	audio_mixer=$(get_trait audio_mixer)
+
+	# Firmware owns ALSA routing: generate the boot-time .asoundrc from traits.
+	/usr/share/minime/scripts/audio.sh start-interface speakers
+
+	if [ -n "$audio_mixer" ]; then
+		amixer sset "$audio_mixer" 100% unmute >/dev/null 2>&1 || true
+	fi
+
+	# Some codecs (sun4i/H616) keep a separate "DAC" pswitch that must be
+	# unmuted for sound to pass; the boot-time unmute covers it.
+	if [ -n "$audio_card" ] && [ "$audio_card" != "default" ]; then
+		amixer -q -c "$audio_card" sset 'DAC' unmute >/dev/null 2>&1 || true
+	else
+		amixer -q sset 'DAC' unmute >/dev/null 2>&1 || true
+	fi
+
+	export HOME=/mnt/sdcard
+	export XDG_RUNTIME_DIR=/run
+	# Allium shells out to its bundled helpers (say/show/screenshot) which
+	# live in .ui/bin; make them resolvable on PATH.
+	export PATH="/mnt/sdcard/.ui/bin:/usr/bin:/bin:/sbin:/usr/sbin:${PATH:-}"
+
+	if [ -z "$UI_BIN" ] || ! [ -x "$UI_BIN" ]; then
+		echo "No UI binary found" >/tmp/ui.log
+		if [ -d /mnt/sdcard ]; then
+			log_boot "ERROR: No UI binary found"
+			cp -f /tmp/ui.log /mnt/sdcard/ui.log 2>/dev/null || true
+			sync 2>/dev/null || true
+		fi
+		eend 1 "No UI binary found"
+		return 1
+	fi
+
+	if [ -d /mnt/sdcard ]; then
+		log_boot "Executing ${UI_NAME} (${UI_BIN})"
+		sync 2>/dev/null || true
+	fi
+
+	UI_DIR="$(dirname "$(dirname "$UI_BIN")")"
+	if [ -d "${UI_DIR}/lib" ]; then
+		export LD_LIBRARY_PATH="${UI_DIR}/lib:${LD_LIBRARY_PATH:-}"
+	fi
+
+	( "$UI_BIN" </dev/console >/tmp/ui.log 2>&1 ) &
+	echo $! >/tmp/ui.pid
+
+	eend 0
+}
+
+stop() {
+	ebegin "Stopping UI"
+
+	UI_STOP_CMD=$(read_ui_env UI_STOP_CMD)
+	UI_PROCESSES=$(read_ui_env UI_PROCESSES)
+
+	if [ -n "$UI_STOP_CMD" ]; then
+		eval "$UI_STOP_CMD" >/dev/null 2>&1 || true
+		sleep 1.0
+	fi
+
+	if [ -f /tmp/ui.pid ]; then
+		loop_pid="$(cat /tmp/ui.pid)"
+		pkill -P "$loop_pid" 2>/dev/null || true
+		kill "$loop_pid" 2>/dev/null || true
+		rm -f /tmp/ui.pid
+	fi
+
+	if [ -n "${UI_PROCESSES:-}" ]; then
+		# shellcheck disable=SC2086
+		killall $UI_PROCESSES 2>/dev/null || true
+	fi
+
+	eend 0
+}

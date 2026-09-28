@@ -1,0 +1,7 @@
+# Minime device advertisement (custom DNS-SD type for discovery).
+# Browsing: avahi-browse -t _minime._tcp / dns-sd -B _minime
+# NOTE: no 'name' directive — the instance name must follow the hostname so
+# RFC 6762 conflict resolution can suffix it (minime, minime-2, ...). A
+# hardcoded name is never re-suffixed, so two devices would conflict forever.
+type _minime._tcp
+port 23

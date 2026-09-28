@@ -1,0 +1,55 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# gpudriver: load the GPU driver module declared in the device traits.
+# Replaces the separate panfrost (Alpine) and gpudriver (Buildroot) scripts.
+# The build system writes gpu_driver=<module> to platform.ini at build time.
+
+description="Load GPU driver (from traits)"
+
+TRAITS_FILE="/mnt/sdcard/.minime/traits"
+
+depend() {
+	need modules traits
+	before ui
+	after fb-unblank
+}
+
+get_trait() {
+	key="$1"
+	[ -f "$TRAITS_FILE" ] || return 0
+	grep "^${key}=" "$TRAITS_FILE" | tail -n 1 | cut -d= -f2 | tr -d '\r' || true
+}
+
+start() {
+	gpu_driver=$(get_trait gpu_driver)
+	if [ -z "$gpu_driver" ]; then
+		ebegin "Loading GPU driver"
+		eend 1 "gpu_driver trait not set"
+		return 1
+	fi
+
+	ebegin "Loading GPU driver ($gpu_driver)"
+	modprobe "$gpu_driver" 2>/dev/null || true
+	rc=$?
+
+	clk_min=$(get_trait gpu_clock_min)
+	for dev in /sys/class/devfreq/*gpu*; do
+		[ -d "$dev" ] || continue
+		if grep -q "performance" "$dev/available_governors" 2>/dev/null; then
+			echo "performance" > "$dev/governor" 2>/dev/null || true
+		elif [ -n "$clk_min" ] && [ "$clk_min" != "na" ] && [ -f "$dev/min_freq" ]; then
+			echo "$clk_min" > "$dev/min_freq" 2>/dev/null || true
+		fi
+	done
+
+	eend $rc
+}
+
+stop() {
+	gpu_driver=$(get_trait gpu_driver)
+	if [ -n "$gpu_driver" ]; then
+		ebegin "Unloading GPU driver ($gpu_driver)"
+		rmmod "$gpu_driver" 2>/dev/null || true
+		eend 0
+	fi
+}

@@ -1,0 +1,306 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# wifi: iwd (Internet Wireless Daemon).  iwd does 802.11 + WPA natively and,
+# with EnableNetworkConfiguration=true (see /etc/iwd/main.conf), provides its
+# own DHCP client.  Known networks persist as .psk profiles in the writable
+# state directory on the FAT partition.
+
+description="Minime Wi-Fi (iwd)"
+
+# --- Configuration ---
+wifi_interface="wlan0"
+iwd_state_dir="/mnt/sdcard/.minime/config/iwd"
+iwd_seed_dir="/mnt/sdcard/.minime/config/iwd/seed"
+wifi_config_file="/mnt/sdcard/.minime/config/wifi.cfg"
+iwd_pidfile="/run/iwd.pid"
+diagnostic_logfile="/tmp/wifi.diagnostics"
+
+# --- Timeouts ---
+station_connect_wait_seconds=40
+wifi_driver_wait_seconds=5
+
+# --- Helper functions ---
+
+log_boot() {
+	/usr/share/minime/scripts/log-boot.sh WIFI "$@" 2>/dev/null || true
+}
+
+
+profile_file_for() {
+	# iwd profile filename encoding (iwd.network(5)): the SSID is used
+	# verbatim only if it is alphanumeric + space + '_' + '-'.  Otherwise
+	# the file is named '=' followed by the lower-case hex encoding of the
+	# SSID.  e.g. "Greeks & Geeks" -> "=477265656b732026204765656b73".
+	ssid="$1"
+	case "${ssid}" in
+	*[!A-Za-z0-9_\ -]*)
+		printf '=%s\n' "$(printf '%s' "${ssid}" | od -An -tx1 | tr -d ' \n')"
+		;;
+	*)
+		printf '%s\n' "${ssid}"
+		;;
+	esac
+}
+
+load_wifi_cfg_profiles() {
+	[ -f "${wifi_config_file}" ] || return 0
+	mkdir -p "${iwd_state_dir}"
+	ssid=""
+	psk=""
+	target_ssid=""
+
+	while IFS='=' read -r key val || [ -n "$key" ]; do
+		[ -n "$key" ] || continue
+		key=$(printf '%s' "$key" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+		val=$(printf '%s' "$val" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//')
+		case "$key" in
+		\#*) continue ;;
+		SSID)
+			if [ -n "$ssid" ]; then
+				write_profile_if_needed "$ssid" "$psk"
+				psk=""
+			fi
+			[ -n "${target_ssid}" ] || target_ssid="$val"
+			ssid="$val"
+			;;
+		Passphrase) psk="$val" ;;
+		esac
+	done <"${wifi_config_file}"
+
+	if [ -n "$ssid" ]; then
+		write_profile_if_needed "$ssid" "$psk"
+	fi
+}
+
+write_profile_if_needed() {
+	ssid="$1"
+	psk="$2"
+	name="$(profile_file_for "$ssid")"
+	profile="${iwd_state_dir}/${name}.psk"
+
+	# If profile already exists and contains the matching passphrase or PreSharedKey, preserve it
+	if [ -f "${profile}" ]; then
+		if [ -n "$psk" ]; then
+			if grep -q "^Passphrase=${psk}$" "${profile}" 2>/dev/null || grep -q "^PreSharedKey=" "${profile}" 2>/dev/null; then
+				return 0
+			fi
+		else
+			if grep -q "^Passphrase=$" "${profile}" 2>/dev/null || ! grep -q "^Passphrase=" "${profile}" 2>/dev/null; then
+				return 0
+			fi
+		fi
+	fi
+
+	{
+		printf '[Security]\n'
+		if [ -n "$psk" ]; then
+			printf 'Passphrase=%s\n' "$psk"
+		else
+			printf 'Passphrase=\n'
+		fi
+		printf '[Settings]\nAutoConnect=true\n'
+	} >"${profile}" 2>/dev/null
+	chmod 600 "${profile}" 2>/dev/null || true
+}
+
+seed_iwd_profiles() {
+	[ -d "${iwd_seed_dir}" ] || return 0
+	mkdir -p "${iwd_state_dir}"
+	for profile in "${iwd_seed_dir}"/*.psk; do
+		[ -f "${profile}" ] || continue
+		dest="${iwd_state_dir}/${profile##*/}"
+		[ -f "${dest}" ] || cp -f "${profile}" "${dest}" 2>/dev/null || true
+	done
+}
+
+check_wifi_hardware() {
+	i=0
+	if command -v rfkill >/dev/null 2>&1; then
+		rfkill unblock wifi >/dev/null 2>&1 || true
+	fi
+	while [ "${i}" -lt "${wifi_driver_wait_seconds}" ]; do
+		if ip link show "${wifi_interface}" >/dev/null 2>&1; then
+			return 0
+		fi
+		i=$((i + 1))
+		sleep 0.1
+	done
+	return 1
+}
+
+trigger_scan_and_connect() {
+	[ -n "${target_ssid}" ] || return 0
+	command -v iwctl >/dev/null 2>&1 || return 0
+
+	iwctl station "${wifi_interface}" scan >/dev/null 2>&1 || true
+	sleep 0.5
+	iwctl station "${wifi_interface}" connect "${target_ssid}" >/dev/null 2>&1 || true
+}
+
+wait_for_connected() {
+	# High-frequency polling loop: checks carrier and IP address without static sleeps.
+	ticks=0
+	max_ticks=$((station_connect_wait_seconds * 20)) # 20 ticks per second (0.05s)
+	has_carrier=0
+
+	while [ "${ticks}" -lt "${max_ticks}" ]; do
+		if ! kill -0 "$(cat "${iwd_pidfile}" 2>/dev/null)" 2>/dev/null; then
+			return 1
+		fi
+
+		# Check 802.11 link carrier
+		if [ "${has_carrier}" -eq 0 ] && [ "$(cat "/sys/class/net/${wifi_interface}/carrier" 2>/dev/null)" = "1" ]; then
+			has_carrier=1
+		fi
+
+		# Check DHCP IPv4 address
+		if [ "${has_carrier}" -eq 1 ] && ip -4 addr show "${wifi_interface}" 2>/dev/null | grep -q "inet "; then
+			return 0
+		fi
+
+		# Retry connect if carrier not up after 1.5s
+		if [ "${ticks}" -eq 30 ] && [ "${has_carrier}" -eq 0 ]; then
+			(
+				iwctl station "${wifi_interface}" connect "${target_ssid}" >/dev/null 2>&1 || true
+			) &
+		fi
+
+		ticks=$((ticks + 1))
+		sleep 0.05
+	done
+	return 1
+}
+
+log_failure_diagnostics() {
+	reason="$1"
+	{
+		printf '%s\n' "reason=${reason}"
+		printf '%s ' "/sys/class/net/${wifi_interface}:"
+		if [ -e "/sys/class/net/${wifi_interface}" ]; then
+			printf '%s\n' "present"
+			ip link show "${wifi_interface}" 2>&1 || true
+		else
+			printf '%s\n' "missing"
+		fi
+		printf '%s\n' "/sys/bus/sdio/devices:"
+		ls -la /sys/bus/sdio/devices 2>&1 || true
+		printf '%s\n' "iwctl station ${wifi_interface} show:"
+		if command -v iwctl >/dev/null 2>&1; then
+			iwctl station "${wifi_interface}" show 2>&1 || true
+		else
+			printf '%s\n' "iwctl missing"
+		fi
+		printf '%s\n' "iwd profiles:"
+		ls -la "${iwd_state_dir}" 2>&1 || true
+	} >>"${diagnostic_logfile}"
+	if [ -d /mnt/sdcard ]; then
+		cp -f "${diagnostic_logfile}" /mnt/sdcard/wifi.diagnostics 2>/dev/null || true
+		log_boot "startup failed: ${reason}; diagnostics in /mnt/sdcard/wifi.diagnostics"
+	fi
+	logger -t wifi "startup failed: ${reason}; diagnostics in ${diagnostic_logfile}" 2>/dev/null || true
+	echo "wifi: startup failed: ${reason}" >&2
+}
+
+# --- OpenRC service ---
+
+depend() {
+	need localmount modules dbus
+	before traits display ui
+	after fb-unblank
+}
+
+start() {
+	ebegin "Starting Wi-Fi (iwd)"
+
+	# User-controlled enable gate (managed by the Wi-Fi settings PAK).
+	# Auto-create gate on first boot if wifi.cfg exists and no gate directory exists yet.
+	if [ ! -f /mnt/sdcard/.minime/config/wifi/enabled ] && [ ! -d /mnt/sdcard/.minime/config/wifi ]; then
+		if grep -q '^SSID=' "${wifi_config_file}" 2>/dev/null; then
+			mkdir -p /mnt/sdcard/.minime/config/wifi
+			echo 1 >/mnt/sdcard/.minime/config/wifi/enabled
+		fi
+	fi
+
+	if [ ! -f /mnt/sdcard/.minime/config/wifi/enabled ]; then
+		einfo "Wi-Fi disabled by user"
+		eend 0
+		return 0
+	fi
+
+	if ! check_wifi_hardware; then
+		log_failure_diagnostics "missing-${wifi_interface}"
+		eend 1 "no ${wifi_interface} interface found"
+		return 1
+	fi
+
+	mkdir -p "${iwd_state_dir}"
+	load_wifi_cfg_profiles
+	seed_iwd_profiles
+
+	# Start iwd with the state dir on the FAT partition so known networks
+	# persist across reboots.  EnableNetworkConfiguration (main.conf) makes
+	# iwd run its own DHCP client.  env is used so STATE_DIRECTORY reaches the
+	# daemonized child reliably.
+	iwd_bin="$(command -v iwd 2>/dev/null || echo /usr/libexec/iwd)"
+	if ! env STATE_DIRECTORY="${iwd_state_dir}" start-stop-daemon -S -q -b -m \
+		-p "${iwd_pidfile}" \
+		-x "${iwd_bin}" -- 2>>"${diagnostic_logfile}"; then
+		# Already running (e.g. a previous start left it up) is fine.
+		if [ -f "${iwd_pidfile}" ] && kill -0 "$(cat "${iwd_pidfile}" 2>/dev/null)" 2>/dev/null; then
+			log_boot "iwd already running"
+		else
+			log_failure_diagnostics "iwd-failed-to-start"
+			eend 1 "iwd failed to start"
+			return 1
+		fi
+	fi
+
+	# Background worker: orchestrate scan, connect, wait for IP, and sync NTP
+	(
+		chk=0
+		while [ "${chk}" -lt 4 ]; do
+			if [ -f "${iwd_pidfile}" ] && kill -0 "$(cat "${iwd_pidfile}" 2>/dev/null)" 2>/dev/null; then
+				break
+			fi
+			chk=$((chk + 1))
+			sleep 0.05
+		done
+
+		# Trigger scan and connect in background
+		trigger_scan_and_connect &
+
+		if wait_for_connected; then
+			logger -t wifi "connection established" 2>/dev/null || true
+			log_boot "Connection established with IP"
+
+			# Start NTP daemon to sync time in background
+			if command -v ntpd >/dev/null 2>&1; then
+				(
+					killall ntpd 2>/dev/null || true
+					ntpd -p pool.ntp.org 2>/dev/null || true
+				) &
+			fi
+		else
+			log_failure_diagnostics "station-connect-timeout"
+		fi
+	) >/dev/null 2>&1 &
+
+	eend 0
+}
+
+stop() {
+	ebegin "Stopping Wi-Fi"
+	if [ -f "${iwd_pidfile}" ]; then
+		kill "$(cat "${iwd_pidfile}")" >/dev/null 2>&1 || true
+		rm -f "${iwd_pidfile}"
+	fi
+	ip link set "${wifi_interface}" down >/dev/null 2>&1 || true
+	eend 0
+}
+
+reload() {
+	ebegin "Reloading Wi-Fi"
+	load_wifi_cfg_profiles
+	seed_iwd_profiles
+	eend 0
+}

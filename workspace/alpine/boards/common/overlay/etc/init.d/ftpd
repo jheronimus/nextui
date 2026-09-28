@@ -1,0 +1,28 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# ftpd: anonymous-feel FTP to the SD card.  Mirrors the
+# Passwordless local FTP service.
+
+description="Minime FTP daemon"
+
+command="$(command -v tcpsvd 2>/dev/null || echo /usr/sbin/tcpsvd)"
+command_args="-vE 0.0.0.0 21 /usr/sbin/ftpd -A -w /mnt/sdcard"
+pidfile="/run/ftpd.pid"
+
+depend() {
+	need modules
+	need localmount
+}
+
+start() {
+	ebegin "Starting ftpd"
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$pidfile" --exec "$command" -- $command_args
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping ftpd"
+	start-stop-daemon --stop --pidfile "$pidfile" --exec "$command"
+	eend $?
+}

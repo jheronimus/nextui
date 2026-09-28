@@ -1,0 +1,38 @@
+# shellcheck shell=sh disable=SC2034,SC2154,SC3043
+# abuild framework sets srcdir/builddir/pkgdir in the build env.
+#
+# Unmodified upstream package; APKBUILD copied from Minime. Grows the FAT32
+# userdata partition on first boot, invoked by the fatresize OpenRC service.
+pkgname=fatresize
+pkgver=1.1.0
+pkgrel=0
+pkgdesc="FAT32 filesystem resizer used by the first-boot expansion step"
+url="https://github.com/ya-mouse/fatresize"
+arch="aarch64"
+license="GPL-3.0-or-later"
+options="!strip !check"
+makedepends="
+	autoconf
+	automake
+	libtool
+	linux-headers
+	parted-dev
+	pkgconf
+"
+source="fatresize_$pkgver.orig.tar.gz::https://deb.debian.org/debian/pool/main/f/fatresize/fatresize_${pkgver}.orig.tar.gz"
+sha512sums="e4de417fffcceab071571c878f93bb68c7a7fa4f3ab89e272f533940669ffeaa0cb36967dc8fd7cdeda935ef352bce735dd4dac579a2291d9c01447648e8d40f  fatresize_1.1.0.orig.tar.gz"
+
+build() {
+	./configure \
+		--build="$CBUILD" \
+		--host="$CHOST" \
+		--prefix=/usr \
+		--sbindir=/usr/sbin \
+		--libdir=/usr/lib
+	make
+}
+
+package() {
+	make DESTDIR="$pkgdir" install
+	rm -rf "${pkgdir:?}/usr/share"
+}

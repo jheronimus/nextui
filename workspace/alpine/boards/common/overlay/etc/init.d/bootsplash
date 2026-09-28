@@ -1,0 +1,29 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# bootsplash: run bootsplash in the background until the UI takes over.
+
+description="Minime Bootsplash"
+
+depend() {
+	after fb-unblank
+	before *
+	keyword -shutdown -timeout
+}
+
+start() {
+	ebegin "Starting bootsplash"
+	if [ -x /usr/bin/bootsplash ]; then
+		start-stop-daemon --start --background --make-pidfile \
+			--pidfile /run/bootsplash.pid --exec /usr/bin/bootsplash
+	fi
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping bootsplash"
+	if [ -f /run/bootsplash.pid ]; then
+		start-stop-daemon --stop --pidfile /run/bootsplash.pid 2>/dev/null || true
+		rm -f /run/bootsplash.pid
+	fi
+	eend 0
+}

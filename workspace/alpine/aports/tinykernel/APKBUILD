@@ -1,0 +1,136 @@
+# shellcheck shell=sh disable=SC2034,SC2154,SC3043
+# abuild framework sets srcdir/builddir/pkgdir in the build env.
+#
+# Derived from Minime's packages/components/alpine/aports/tinykernel/APKBUILD.
+# Changes: rk3326 removed, the `makefile` codegen mode removed with it, the
+# `gentraits.sh makefile` call dropped, and paths repointed at alpine/boards/.
+# The patch series, config layering and firmware staging are unchanged.
+#
+# The kernel version is the single most important number in this repo: the
+# vendored patch series in alpine/boards/*/patches/linux/ is written against it.
+# Bump it only together with re-auditing the series.
+pkgname=tinykernel
+pkgver=7.1.5
+pkgrel=0
+pkgdesc="NextUI minimal Linux kernel + DTBs for Alpine"
+url="https://github.com/LoveRetro/NextUI"
+arch="aarch64"
+license="GPL-2.0-only"
+options="!strip !check"
+makedepends="
+	bash
+	bc
+	bison
+	flex
+	gcc-aarch64
+	binutils-aarch64
+	linux-headers
+	ncurses-dev
+	openssl-dev
+	perl
+	python3
+"
+
+# Direct upstream tarball URL so the build is reproducible without aports sync.
+# If you need the in-progress stable branch, switch to git://.
+source="
+	https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/linux-${pkgver}.tar.xz
+"
+sha512sums="17f95307b6e86a0794df146d97256ba4783b7a494f5eb43aafc14d64367541874cec7f6e8c2ea724eca149db18e4bd5880bf28a8c5e47ae8a769776bbd955af8  linux-7.1.5.tar.xz"
+
+: "${DTB_BOARD:=rk3566}"
+case "$DTB_BOARD" in
+rk3566 | h700) ;;
+*) echo "unsupported DTB_BOARD=$DTB_BOARD (supported: h700, rk3566)"; exit 1 ;;
+esac
+
+NEXTUI_ROOT="${NEXTUI_ROOT:-/workspace}"
+BOARDS="${NEXTUI_ROOT}/workspace/alpine/boards"
+
+# Shipped DTB list is generated from the device registry
+# (alpine/boards/<board>/traits/ -- the single source of truth for devices).
+_dtbs="$(sh "${BOARDS}/gentraits.sh" dtbs "$DTB_BOARD")"
+[ -n "$_dtbs" ] || { echo "FATAL: gentraits.sh returned no DTBs for $DTB_BOARD"; exit 1; }
+
+build() {
+	local src="$srcdir/linux-$pkgver"
+	cd "$src" || return 1
+
+	# 1. Apply the board patch series.
+	local patch_dir="${BOARDS}/${DTB_BOARD}/patches/linux"
+	if [ -d "$patch_dir" ]; then
+		for p in "$patch_dir"/*.patch; do
+			[ -f "$p" ] || continue
+			msg "Applying $(basename "$p")"
+			patch -p1 -N <"$p" || return 1
+		done
+	fi
+
+	# 2. Generate overlay DTS for derived devices from the device registry.
+	#    Currently a no-op: rg35xx-sp-v1 and rg-arc-d both ship a mainline DTB
+	#    as-is. It stays wired so adding a panel variant is data-only.
+	local dts_dir="$DTB_BOARD"
+	case "$DTB_BOARD" in
+	h700) dts_dir=allwinner ;;
+	rk3566) dts_dir=rockchip ;;
+	esac
+	sh "${BOARDS}/gentraits.sh" overlays "$DTB_BOARD" "arch/arm64/boot/dts/$dts_dir" >/dev/null || return 1
+
+	# 3. Merge kernel config:
+	#    tiny-base.config -> tiny-<board>.config -> tiny-panfrost.config -> olddefconfig
+	cat >.config <<-EOF
+		# merged by APKBUILD build()
+		# tiny-base.config first
+	EOF
+	cat "${BOARDS}/common/tiny-base.config" >>.config
+	cat "${BOARDS}/${DTB_BOARD}/tiny-${DTB_BOARD}.config" >>.config
+	cat "${BOARDS}/common/tiny-panfrost.config" >>.config
+
+	# 4. Resolve new options and surface any unresolved ones.
+	local fw_stage="$srcdir/firmware"
+	mkdir -p "$fw_stage"
+	cp -rL "${BOARDS}/common/firmware/"* "$fw_stage/"
+	if [ -d "${BOARDS}/${DTB_BOARD}/firmware" ]; then
+		cp -rL "${BOARDS}/${DTB_BOARD}/firmware/"* "$fw_stage/" 2>/dev/null || true
+	fi
+	sed -i "s|__NEXTUI_BOARD_FIRMWARE_DIR__|$fw_stage|g" .config
+	sed -i "s|__NEXTUI_COMMON_FIRMWARE_DIR__|${BOARDS}/common/firmware|g" .config
+	make ARCH=arm64 CROSS_COMPILE=aarch64-alpine-linux-musl- olddefconfig
+
+	# 5. Hard guard: CONFIG_DRM_PANFROST must be present, CONFIG_MALI_KBASE
+	#    must not.  A future patch series that re-enables the proprietary
+	#    Mali driver pair needs explicit opt-in, not a silent regression.
+	grep -q "^CONFIG_DRM_PANFROST=y" .config \
+		|| { echo "FATAL: CONFIG_DRM_PANFROST=y missing after olddefconfig"; return 1; }
+	if grep -q "^CONFIG_MALI_KBASE=y\|^CONFIG_MALI_MIDGARD=y\|^CONFIG_MALI_BIFROST=y" .config; then
+		echo "FATAL: proprietary Mali driver re-enabled by olddefconfig"
+		return 1
+	fi
+
+	# 6. Build kernel + DTBs + modules.
+	local dtb_targets=""
+	for dtb in $_dtbs; do
+		dtb_targets="$dtb_targets ${dtb}.dtb"
+	done
+	make ARCH=arm64 CROSS_COMPILE=aarch64-alpine-linux-musl- -j"$JOBS" Image modules $dtb_targets
+}
+
+package() {
+	local src="$srcdir/linux-$pkgver"
+	cd "$src" || return 1
+
+	install -Dm644 .config "$pkgdir/var/lib/nextui/tinykernel.config"
+	install -Dm644 arch/arm64/boot/Image "$pkgdir/var/lib/nextui/tinykernel.Image"
+	for dtb in $_dtbs; do
+		install -Dm644 "arch/arm64/boot/dts/${dtb}.dtb" \
+			"$pkgdir/var/lib/nextui/dtbs/${dtb##*/}.dtb"
+	done
+
+	mkdir -p "$pkgdir/lib/modules"
+	make ARCH=arm64 CROSS_COMPILE=aarch64-alpine-linux-musl- \
+		INSTALL_MOD_PATH="$pkgdir" modules_install
+	rm -f "$pkgdir"/lib/modules/*/build "$pkgdir"/lib/modules/*/source
+}
+
+# Staging hook: build_tinykernel() in scripts/build.sh runs after abuild to pick
+# up /alpine-output/boot/Image + DTBs.

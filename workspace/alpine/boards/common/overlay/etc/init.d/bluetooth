@@ -1,0 +1,156 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034,SC3043
+# bluetooth: unified Bluetooth stack (bluetoothd + bluealsa).
+# Only started when the user has enabled Bluetooth under
+# /mnt/sdcard/.minime/config/bluetooth/enabled.
+
+description="Bluetooth stack (bluetoothd + bluealsa)"
+
+# BlueZ state lives in a small ext2 image file inside the FAT userdata
+# (`state.fs`), loop-mounted at /var/lib/bluetooth. A file (not a partition)
+# needs no reflash. ext2 has no journal; on corruption the image is rebuilt,
+# so pairing is re-creatable but the FAT is never at risk from a growing file.
+STATE_FILE="/mnt/sdcard/.minime/config/bluetooth/state.fs"
+STATE_SIZE_MB=2
+
+mount_state_file() {
+	local attempt
+	mkdir -p /mnt/sdcard/.minime/config/bluetooth 2>/dev/null || true
+	for attempt in 1 2 3 4 5; do
+		if [ ! -f "${STATE_FILE}" ]; then
+			dd if=/dev/zero of="${STATE_FILE}" bs=1M count="${STATE_SIZE_MB}" 2>/dev/null || { sleep 1; continue; }
+			mkfs.ext2 -q -F -m 0 -i 8192 "${STATE_FILE}" 2>/dev/null || { rm -f "${STATE_FILE}"; sleep 1; continue; }
+		fi
+		if mount -o loop,noatime "${STATE_FILE}" /var/lib/bluetooth 2>/dev/null; then
+			return 0
+		fi
+		# Corrupt image: rebuild it (pairing is re-creatable).
+		e2fsck -p "${STATE_FILE}" >/dev/null 2>&1 || {
+			dd if=/dev/zero of="${STATE_FILE}" bs=1M count="${STATE_SIZE_MB}" 2>/dev/null
+			mkfs.ext2 -q -F -m 0 -i 8192 "${STATE_FILE}" 2>/dev/null
+		}
+		sleep 2
+	done
+	return 1
+}
+
+depend() {
+	need dbus modules
+	after udev-settle
+	before ui
+	after fb-unblank
+}
+
+start() {
+	# Enable on first boot if no config directory exists yet
+	if [ ! -f /mnt/sdcard/.minime/config/bluetooth/enabled ] && [ ! -d /mnt/sdcard/.minime/config/bluetooth ]; then
+		mkdir -p /mnt/sdcard/.minime/config/bluetooth
+		echo 1 >/mnt/sdcard/.minime/config/bluetooth/enabled
+	fi
+
+	if [ ! -f /mnt/sdcard/.minime/config/bluetooth/enabled ]; then
+		einfo "Bluetooth disabled by user"
+		return 0
+	fi
+	ebegin "Starting Bluetooth stack"
+
+	# 1. bluetoothd
+	bluetoothd_bin="$(command -v bluetoothd 2>/dev/null || true)"
+	if [ -z "${bluetoothd_bin}" ]; then
+		for path in /usr/libexec/bluetooth/bluetoothd /usr/lib/bluetooth/bluetoothd; do
+			if [ -x "${path}" ]; then
+				bluetoothd_bin="${path}"
+				break
+			fi
+		done
+	fi
+	if [ -z "${bluetoothd_bin}" ]; then
+		eend 1 "bluetoothd binary not found"
+		return 1
+	fi
+
+	mkdir -p /run/bluetooth /run/bluealsa
+	mkdir -p /var/lib/bluetooth /var/lib/bluealsa 2>/dev/null || true
+	mkdir -p /mnt/sdcard/.minime/config/bluetooth 2>/dev/null || true
+
+	# Prefer the loop-mounted ext2 state image on the FAT card (works without
+	# reflashing). Falls back to tmpfs + storage.tar if the image cannot be
+	# mounted (e.g. no loop devices available).
+	BT_STATE_MOUNTED=0
+	if mount_state_file; then
+		BT_STATE_MOUNTED=1
+	fi
+
+	if [ "${BT_STATE_MOUNTED}" -ne 1 ]; then
+		if ! touch /var/lib/bluetooth/.test 2>/dev/null; then
+			mount -t tmpfs tmpfs /var/lib/bluetooth 2>/dev/null || true
+		else
+			rm -f /var/lib/bluetooth/.test
+		fi
+		if [ -f /mnt/sdcard/.minime/config/bluetooth/storage.tar ]; then
+			tar -xf /mnt/sdcard/.minime/config/bluetooth/storage.tar -C /var/lib/bluetooth 2>/dev/null || true
+		fi
+	fi
+	if ! touch /var/lib/bluealsa/.test 2>/dev/null; then
+		mount -t tmpfs tmpfs /var/lib/bluealsa 2>/dev/null || true
+	else
+		rm -f /var/lib/bluealsa/.test
+	fi
+	chmod 700 /var/lib/bluetooth 2>/dev/null || true
+	start-stop-daemon -S -q -b -m \
+		-p /run/bluetoothd.pid \
+		-x "${bluetoothd_bin}" -- -n
+	if [ $? -ne 0 ]; then
+		eend 1 "bluetoothd failed to start"
+		return 1
+	fi
+
+	# Wait for bluetoothd to register on D-Bus so BlueALSA endpoints bind reliably
+	for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+		if gdbus call --system --dest org.bluez --object-path /org/bluez --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+			break
+		fi
+		sleep 0.1
+	done
+
+	# 2. BlueALSA
+	bluealsa_bin="$(command -v bluealsa 2>/dev/null || echo /usr/bin/bluealsa)"
+	start-stop-daemon -S -q -b -m \
+		-p /run/bluealsa.pid \
+		-x "${bluealsa_bin}" -- -p a2dp-source -p a2dp-sink
+
+	# BlueALSA failure is non-fatal (audio routing only)
+	eend 0
+}
+
+stop() {
+	ebegin "Stopping Bluetooth stack"
+
+	/usr/share/minime/scripts/audio.sh stop-interface bluetooth 2>/dev/null || true
+
+	bt_fstype="$(awk '$2 == "/var/lib/bluetooth" {print $3; exit}' /proc/mounts 2>/dev/null || true)"
+	if [ "${bt_fstype}" = "tmpfs" ]; then
+		# Legacy fallback: snapshot the volatile tree to the FAT card.
+		mkdir -p /mnt/sdcard/.minime/config/bluetooth 2>/dev/null || true
+		tmp_storage="/tmp/bluetooth-storage.tar"
+		rm -f "${tmp_storage}"
+		tar -cf "${tmp_storage}" -C /var/lib/bluetooth . 2>/dev/null || true
+		if [ -f "${tmp_storage}" ]; then
+			cp -f "${tmp_storage}" /mnt/sdcard/.minime/config/bluetooth/storage.tar 2>/dev/null || true
+			rm -f "${tmp_storage}"
+		fi
+	fi
+
+	start-stop-daemon -K -q -p /run/bluealsa.pid 2>/dev/null || true
+	rm -f /run/bluealsa.pid
+
+	start-stop-daemon -K -q -p /run/bluetoothd.pid 2>/dev/null || true
+	rm -f /run/bluetoothd.pid
+
+	if [ -n "${bt_fstype}" ]; then
+		sync
+		umount /var/lib/bluetooth 2>/dev/null || true
+	fi
+
+	eend 0
+}

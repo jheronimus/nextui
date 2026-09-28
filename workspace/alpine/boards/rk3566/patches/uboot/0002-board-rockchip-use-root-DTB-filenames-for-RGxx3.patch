@@ -1,0 +1,27 @@
+From: ROCKNIX
+Subject: [PATCH] board: rockchip: use root DTB filenames for RGxx3
+
+ROCKNIX stores RK3566 device trees under /device_trees without the
+rockchip/ prefix. Minime stores the same DTB filenames under
+.minime/devices. Keep U-Boot's detected fdtfile compatible with those
+boot partition paths.
+
+Imported from ROCKNIX RK3566 Generic U-Boot support and adapted for
+U-Boot 2026.04 context.
+
+Signed-off-by: ROCKNIX <noreply@rocknix.org>
+---
+ board/anbernic/rgxx3_rk3566/rgxx3-rk3566.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/board/anbernic/rgxx3_rk3566/rgxx3-rk3566.c
++++ b/board/anbernic/rgxx3_rk3566/rgxx3-rk3566.c
+@@ -39,7 +39,7 @@
+ 
+ #define GPIO_WRITEMASK(bits)	((bits) << 16)
+ 
+-#define DTB_DIR			"rockchip/"
++#define DTB_DIR			""
+ 
+ struct rg3xx_model {
+ 	const u16 adc_value;

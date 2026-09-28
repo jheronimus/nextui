@@ -1,0 +1,7 @@
+# Minime gamepad joystick classification.
+# The gamepads are digital-only gpio-keys devices (no EV_ABS), so SDL's evdev
+# GuessDeviceClass heuristic won't classify them as joysticks. Tag the trait's
+# gamepad device name(s) with ID_INPUT_JOYSTICK so SDL (via udev) exposes it.
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="gpio-keys", ENV{ID_INPUT_JOYSTICK}="1"
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="gpio-keys-control", ENV{ID_INPUT_JOYSTICK}="1"
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="gpio-keys-gamepad", ENV{ID_INPUT_JOYSTICK}="1"

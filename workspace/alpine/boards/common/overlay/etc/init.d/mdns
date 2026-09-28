@@ -1,0 +1,36 @@
+#!/sbin/openrc-run
+# shellcheck disable=SC2034
+# mdns: announce Minime over mDNS as minime.local (mdnsd).  mdnsd tracks
+# interfaces and addresses in real time over netlink, so it can start before
+# Wi-Fi connects.  It probes for name conflicts per RFC 6762 and renames
+# itself minime-2.local (etc.) if another device already claims minime.local.
+# DNS-SD service records in /etc/mdns.d/ advertise telnet/FTP/SSH so devices
+# show up in avahi-browse / Bonjour browsers too.
+
+description="Minime mDNS (mdnsd)"
+
+command="/usr/sbin/mdnsd"
+# start-stop-daemon's --make-pidfile owns the pidfile; no -p needed.
+command_args="-n -s -H minime"
+pidfile="/run/mdnsd.pid"
+
+depend() {
+	need localmount modules
+}
+
+start() {
+	ebegin "Starting mDNS (mdnsd)"
+	if [ ! -x "${command}" ]; then
+		eend 1 "mdnsd not installed"
+		return 1
+	fi
+	start-stop-daemon --start --background --make-pidfile \
+		--pidfile "$pidfile" --exec "$command" -- $command_args
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping mDNS (mdnsd)"
+	start-stop-daemon --stop --pidfile "$pidfile" --exec "$command"
+	eend $?
+}
