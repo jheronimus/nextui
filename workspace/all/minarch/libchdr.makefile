@@ -9,8 +9,11 @@ BUILD_DIR = build/$(PLATFORM)
 
 # Cross-compilation settings (only for non-desktop platforms)
 # Uses the toolchain file provided by the build container
+# NEXTUI-ALPINE: guard CMAKE_TOOLCHAIN_FILE so native alpine container can run cmake
 ifneq ($(PLATFORM),desktop)
+ifdef CMAKE_TOOLCHAIN_FILE
 CMAKE_EXTRA = -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE)
+endif
 endif
 
 .PHONY: all build clean

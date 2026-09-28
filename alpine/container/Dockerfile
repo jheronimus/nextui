@@ -89,6 +89,8 @@ RUN apk add --no-cache --no-progress \
 		zstd-dev \
 		lz4-dev \
 		openssl-dev \
+		libzip-dev \
+		cmake \
 		freetype-dev \
 		libpng-dev \
 		gmp-dev \

@@ -28,7 +28,8 @@ SOURCE = $(TARGET).c ma_cheats.c ma_rewind.c ma_audio.c ma_input.c \
          ../common/notification.c ../../$(PLATFORM)/platform/platform.c
 
 # RA support
-ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 desktop))
+# NEXTUI-ALPINE: enable RetroAchievements and CHD support for alpine
+ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 desktop alpine))
 # RA source files
 SOURCE += ../common/http.c ../common/ra_badges.c ../common/ra_offline.c ../common/ra_sync.c ../common/ra_event_queue.c ra_integration.c chd_reader.c
 endif
@@ -66,7 +67,8 @@ LDFLAGS +=  -lasound
 endif
 
 # RA support: rcheevos and libchdr linking
-ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 desktop))
+# NEXTUI-ALPINE: enable RetroAchievements flags for alpine
+ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 desktop alpine))
 LDFLAGS += -lrcheevos -lchdr -lcrypto
 CFLAGS += -DRC_CLIENT_SUPPORTS_HASH -DHAS_CHEEVOS -DHAS_CHDR
 ifeq ($(PLATFORM), desktop)
@@ -98,7 +100,8 @@ ifeq ($(PLATFORM), desktop)
 all: clean libretro-common rcheevos libchdr $(PREFIX_LOCAL)/include/msettings.h
 	mkdir -p build/$(PLATFORM)
 	$(CC) $(SOURCE) -o $(PRODUCT) $(CFLAGS) $(LDFLAGS)
-else ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355))
+# NEXTUI-ALPINE: include alpine in RA-supported platforms build target
+else ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 alpine))
 # Platforms with RA support
 all: clean libretro-common libsrm.a rcheevos libchdr $(PREFIX_LOCAL)/include/msettings.h
 	mkdir -p build/$(PLATFORM)
