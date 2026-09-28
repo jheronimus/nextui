@@ -104,14 +104,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/ccache
+            ~/alpine-ccache
             ~/alpine-dl
-          key: alpine-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}
+            ~/alpine-output/${{ matrix.board }}/packages
+          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}
           restore-keys: |
-            alpine-${{ runner.arch }}-
+            alpine-${{ matrix.board }}-${{ runner.arch }}-
 
       - name: Build
         run: task build BOARD=${{ matrix.board }}
+
+      - name: Fix cache permissions
+        if: always()
+        run: |
+          sudo chmod -R a+rX ~/alpine-ccache ~/alpine-dl ~/alpine-output 2>/dev/null || true
 
       - name: Upload image
         uses: actions/upload-artifact@v4

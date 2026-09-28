@@ -412,6 +412,11 @@ void PLAT_getOsVersionInfo(char *output_str, size_t max_len) {
 	if (!output_str[0]) snprintf(output_str, max_len, "NextUI %s", device_model);
 }
 
+char *PLAT_getModel(void) {
+	ensure_traits();
+	return device_model;
+}
+
 void PLAT_initDefaultLeds(void) {
 	ensure_traits();
 	memset(lightsDefault, 0, sizeof(lightsDefault));

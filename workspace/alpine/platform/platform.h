@@ -167,6 +167,7 @@ bool PLAT_hasBluetooth(void);
 bool PLAT_hasWifi(void);
 const char *PLAT_getWifiInterface(void);
 int PLAT_hasLid(void);
+char *PLAT_getModel(void);
 
 //////////////////////////////////////
 // Platform Constants
