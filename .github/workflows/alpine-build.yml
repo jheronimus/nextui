@@ -45,12 +45,6 @@ concurrency:
   group: alpine-build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Where the build writes. Mounted into the container.
-  ALPINE_WORK: /home/runner/alpine
-  # Cache the kernel tarball + ccache between runs; both are large and slow.
-  CACHE_KEY: alpine-${{ runner.arch }}-${{ hashFiles('workspace/alpine/**/APKBUILD', 'workspace/alpine/boards/*/tiny-*.config') }}
-
 jobs:
   validate:
     name: Validate
@@ -84,6 +78,7 @@ jobs:
     env:
       BOARD: ${{ matrix.board }}
       FORCE_KERNEL_REBUILD: ${{ inputs.kernel && '1' || '0' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -100,14 +95,19 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
 
+      # hashFiles and runner are only available in step contexts, never in a
+      # workflow- or job-level `env` block. Referencing them there fails
+      # validation and the run dies with no jobs created, which is a needlessly
+      # confusing failure to debug.
       - name: Restore cache
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/ccache
             ~/alpine-dl
-          key: ${{ env.CACHE_KEY }}
-          restore-keys: ${{ env.CACHE_KEY }}-
+          key: alpine-${{ runner.arch }}-${{ hashFiles('workspace/alpine/**/APKBUILD', 'workspace/alpine/boards/*/tiny-*.config') }}
+          restore-keys: |
+            alpine-${{ runner.arch }}-
 
       - name: Build the builder container
         run: task builder
