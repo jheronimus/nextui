@@ -37,8 +37,13 @@
 
 set -eu
 
+# This script lives in the Alpine foundation and reads the hardware (firmware,
+# overlays, DTBs) from there, but the device registry it validates belongs to the
+# NextUI platform port, which is a separate tree at workspace/alpine/boards.
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 BOARDS_ROOT="$ROOT"
+NEXTUI_ROOT="$(cd "${ROOT}/../.." && pwd)"
+PORT_ROOT="${NEXTUI_ROOT}/workspace/alpine/boards"
 
 usage() {
 	echo "usage: $0 check <board> | overlays <board> <outdir> | dtbs <board>" >&2
@@ -56,7 +61,10 @@ read_key() {
 
 # --- board metadata ---------------------------------------------------------
 
+# Hardware lives in the foundation...
 board_dir() { echo "$BOARDS_ROOT/$1"; }
+# ...and the trait registry lives in the platform port, which parses it at boot.
+traits_dir() { echo "$PORT_ROOT/$1/traits"; }
 
 # Board -> DTB directory + DTS filename prefix.
 board_info() {
@@ -137,7 +145,7 @@ input_axis_min input_axis_center input_axis_max input_stick_device_name
 check_board() {
 	board="$1"
 	dir="$(board_dir "$board")"
-	platform="$dir/traits/platform.ini"
+	platform="$(traits_dir "$board")/platform.ini"
 	fail=0
 
 	need() {
@@ -160,7 +168,7 @@ check_board() {
 	done
 
 	seen=""
-	for file in "$dir"/traits/devices/*.ini; do
+	for file in "$(traits_dir "$board")"/devices/*.ini; do
 		[ -f "$file" ] || continue
 		base="$(basename "$file" .ini)"
 		parent="$(read_key parent "$file")"
@@ -224,7 +232,7 @@ check_board() {
 	# Every parent-less (core) device must resolve to a shipped DTB: the
 	# registry drives the kernel builds, so a core device with no DTB is an
 	# unreachable device.
-	for file in "$dir"/traits/devices/*.ini; do
+	for file in "$(traits_dir "$board")"/devices/*.ini; do
 		[ -f "$file" ] || continue
 		[ -n "$(read_key parent "$file")" ] && continue
 		dtb="$(device_dtb "$board" "$file")"
@@ -242,7 +250,7 @@ check_board() {
 dtbs_for_board() {
 	board="$1"
 	dir="$(board_dir "$board")"
-	for file in "$dir"/traits/devices/*.ini; do
+	for file in "$(traits_dir "$board")"/devices/*.ini; do
 		[ -f "$file" ] || continue
 		[ "$(read_key dtb "$file")" = "none" ] && continue
 		device_dtb "$board" "$file"

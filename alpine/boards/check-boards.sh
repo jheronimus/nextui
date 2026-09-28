@@ -267,11 +267,15 @@ fi
 # Derive the set of prefixes actually used by the C code and require the shell
 # side to agree. The C side is authoritative because traits.c cannot be changed
 # without breaking compatibility with the image layout.
-ALPINE_SRC="$(dirname "$ROOT")"
-SHIM_PLATFORM="$ALPINE_SRC/platform"
-# Our own C sources, wherever /usr/share paths are referenced from. This is the
-# parent of $ROOT (which is boards/): the vendored overlay under boards/ is
-# Minime's code and is allowed to disagree with our scripts.
+# The C sources that reference /usr/share paths live in the platform port, not
+# in the foundation this script also validates. ROOT is alpine/boards, so the
+# repo root is two levels up and the port is workspace/alpine inside it.
+ALPINE_SRC="$(cd "$(dirname "$ROOT")/.." && pwd)"
+PORT_DIR="$ALPINE_SRC/workspace/alpine"
+SHIM_PLATFORM="$PORT_DIR/platform"
+# Our own C sources, wherever /usr/share paths are referenced from. These live in
+# the platform port; the vendored overlay under boards/ is Minime's code and is
+# allowed to disagree with our scripts.
 if [ -f "$SHIM_PLATFORM/traits.c" ]; then
 	traits_path="$(sed -n 's/^#define TRAITS_PATH "\(.*\)"/\1/p' "$SHIM_PLATFORM/traits.c" | head -1)"
 	[ -n "$traits_path" ] || fail "traits.c has no TRAITS_PATH define"
@@ -303,7 +307,10 @@ if [ -f "$SHIM_PLATFORM/traits.c" ]; then
 	# C and headers only: post-build.sh itself mentions these paths, and
 	# including it would make the check compare the shell side against itself.
 	# '...' entries are prose in comments, not paths.
-	c_paths="$(find "$ALPINE_SRC" -type f \( -name '*.c' -o -name '*.h' \) -print0 |
+	# Scope to the port only. Sweeping the whole repo would pull in upstream's own
+	# workspace/tg5050, tg5040 and desktop platform.c, which reference paths this
+	# image never installs, and fail the check on someone else's code.
+	c_paths="$(find "$PORT_DIR" -type f \( -name '*.c' -o -name '*.h' \) -print0 |
 		xargs -0 grep -hoE '"/usr/share/[A-Za-z0-9_./-]+' 2>/dev/null |
 		sed 's|"||; s|/$||; s|^/||' | grep -v '\.\.\.' | sort -u | tr '\n' ' ')"
 	# cpath is a full path (usr/share/minime/scripts) and sh_dirs holds the

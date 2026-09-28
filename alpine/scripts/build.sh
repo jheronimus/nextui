@@ -50,7 +50,7 @@ ALPINE_ROOTFS_DIR="${ALPINE_ROOTFS_DIR:-${ALPINE_OUTPUT_DIR}/rootfs}"
 ALPINE_DL_DIR="${ALPINE_DL_DIR:-/alpine-dl/src}"
 
 ALPINE_DIR="${ALPINE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-NEXTUI_ROOT="${NEXTUI_ROOT:-$(cd "${ALPINE_DIR}/../.." && pwd)}"
+NEXTUI_ROOT="${NEXTUI_ROOT:-$(cd "${ALPINE_DIR}/.." && pwd)}"
 
 BOARD="${BOARD:-rk3566}"
 ALPINE_JOBS="${ALPINE_JOBS:-$(nproc 2>/dev/null || echo 4)}"

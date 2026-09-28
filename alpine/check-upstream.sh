@@ -2,8 +2,10 @@
 # check-upstream.sh — enforce this fork's core invariant.
 #
 # The invariant: relative to the NextUI base tag, the ONLY files this repo may
-# add or modify are under workspace/alpine/ (the Alpine foundation) and the
-# root Taskfile.yml. Every other file must be byte-identical to upstream.
+# add or modify live in the two Alpine trees and the root Taskfile.yml:
+#   alpine/**            the Alpine foundation (kernel, rootfs, bootloader, DTS)
+#   workspace/alpine/**  the NextUI platform port for alpine
+# Every other file must be byte-identical to upstream.
 #
 # Why this is checked rather than trusted: the whole point of the layout is
 # that a future NextUI release can be merged as a normal `git merge` with no
@@ -27,20 +29,21 @@ set -eu
 BASE="${NEXTUI_BASE:-v6.14.0}"
 
 # Where we are allowed to add NEW files.
-#   workspace/alpine/**            the Alpine foundation
+#   alpine/**                     the Alpine foundation
+#   workspace/alpine/**           the NextUI platform port
 #   .github/workflows/alpine-*.yml our CI (GitHub only reads the repo root, and
 #                                 upstream has no file by this name, so a future
 #                                 upstream release can never conflict with it)
 #   Taskfile.yml                  the build entry point
-ALLOWED_NEW="workspace/alpine/ .github/workflows/alpine- Taskfile.yml"
+ALLOWED_NEW="alpine/ workspace/alpine/ .github/workflows/alpine- Taskfile.yml"
 
 # Where we are allowed to MODIFY or DELETE existing NextUI files. Deliberately
 # narrower than ALLOWED_NEW: additions cannot conflict with an upstream merge,
 # modifications always can. This is the rule that keeps `git merge upstream/main`
 # a fast-forward instead of a manual merge.
-ALLOWED_MOD="workspace/alpine/ Taskfile.yml"
+ALLOWED_MOD="alpine/ workspace/alpine/ Taskfile.yml"
 
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 log() { printf '  %s\n' "$*"; }
@@ -100,7 +103,7 @@ for f in $modified; do
 	allowed "$f" "$ALLOWED_MOD" || mod_violations="$mod_violations $f"
 done
 if [ -n "$mod_violations" ]; then
-	fail "these existing NextUI files are modified. Only workspace/alpine/ and Taskfile.yml may be modified, or a future upstream release cannot fast-forward:" "$mod_violations"
+	fail "these existing NextUI files are modified. Only ${ALLOWED_MOD} may be modified, or a future upstream release cannot fast-forward:" "$mod_violations"
 fi
 
 new_violations=""
@@ -108,7 +111,7 @@ for f in $untracked; do
 	allowed "$f" "$ALLOWED_NEW" || new_violations="$new_violations $f"
 done
 if [ -n "$new_violations" ]; then
-	fail "these new files are outside the allowed paths (workspace/alpine/, Taskfile.yml, .github/workflows/alpine-*.yml):" "$new_violations"
+	fail "these new files are outside the allowed paths (${ALLOWED_NEW}):" "$new_violations"
 fi
 
 n_mod=$(echo "$modified" | grep -c . || true)

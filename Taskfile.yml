@@ -40,7 +40,7 @@ tasks:
         set -eu
         for b in {{.BOARDS}}; do
           echo "board: $b"
-          ./workspace/alpine/boards/gentraits.sh dtbs "$b" | sed 's/^/  dtb /'
+          ./alpine/boards/gentraits.sh dtbs "$b" | sed 's/^/  dtb /'
         done
 
   devices:
@@ -77,17 +77,17 @@ tasks:
   check-packages:
     desc: Verify every Alpine package name this project installs really exists
     cmds:
-      - ./workspace/alpine/boards/check-packages.sh
+      - ./alpine/boards/check-packages.sh
 
   check-upstream:
     desc: Assert no NextUI file is edited (the core invariant of this fork)
     cmds:
-      - ./workspace/alpine/boards/check-upstream.sh
+      - ./alpine/check-upstream.sh
 
   check-boards:
     desc: Validate trait registry, kernel configs and firmware blobs
     cmds:
-      - ./workspace/alpine/boards/check-boards.sh
+      - ./alpine/boards/check-boards.sh
 
   check-shell:
     desc: Shellcheck the scripts this repo owns
@@ -97,14 +97,14 @@ tasks:
         # Vendored board scripts are Minime's and are checked upstream; only
         # lint what we are responsible for.
         shellcheck -s sh \
-          workspace/alpine/boards/gentraits.sh \
-          workspace/alpine/boards/check-boards.sh \
-          workspace/alpine/boards/check-upstream.sh \
-          workspace/alpine/boards/check-packages.sh \
-          workspace/alpine/scripts/build.sh \
-          workspace/alpine/scripts/post-build.sh \
-          workspace/alpine/scripts/system-image.sh \
-          workspace/alpine/image/build.sh
+          alpine/boards/gentraits.sh \
+          alpine/boards/check-boards.sh \
+          alpine/check-upstream.sh \
+          alpine/boards/check-packages.sh \
+          alpine/scripts/build.sh \
+          alpine/scripts/post-build.sh \
+          alpine/scripts/system-image.sh \
+          alpine/image/build.sh
 
   # ── Payload (NextUI) ──────────────────────────────────────────────────────
   #
@@ -112,7 +112,7 @@ tasks:
   # SD-card payload. This does NOT go through NextUI's top-level makefile: that
   # hardcodes its platform list, has no `alpine` branch in `system`, and its
   # makefile.toolchain pulls ghcr.io/loveretro/alpine-toolchain which does not
-  # exist. workspace/alpine/Makefile drives it instead, in our own container.
+  # exist. alpine/Makefile drives it instead, in our own container.
   #
   # NextUI's *component* makefiles under workspace/all/ are still used,
   # unchanged, as leaf compilers -- they resolve $(PLATFORM) generically.
@@ -120,27 +120,27 @@ tasks:
   payload:
     desc: Compile the NextUI payload for the alpine platform
     cmds:
-      - '{{.MAKE}} -C workspace/alpine payload'
+      - '{{.MAKE}} -C alpine payload'
 
   payload-components:
     desc: Compile only the payload binaries (no assembly, no zip)
     cmds:
-      - '{{.MAKE}} -C workspace/alpine payload-components'
+      - '{{.MAKE}} -C alpine payload-components'
 
   system:
     desc: Assemble the compiled payload into build/
     cmds:
-      - '{{.MAKE}} -C workspace/alpine system'
+      - '{{.MAKE}} -C alpine system'
 
   package:
     desc: Zip build/ into releases/*.zip for the image stage
     cmds:
-      - '{{.MAKE}} -C workspace/alpine package'
+      - '{{.MAKE}} -C alpine package'
 
   clean:
     desc: Clean payload, image and release artifacts
     cmds:
-      - '{{.MAKE}} -C workspace/alpine clean'
+      - '{{.MAKE}} -C alpine clean'
 
   name:
     desc: Print the release name this build would produce
@@ -164,7 +164,7 @@ tasks:
       - |
         set -eu
         echo "board: {{.BOARD}}"
-        {{.MAKE}} -C workspace/alpine components BOARD={{.BOARD}}
+        {{.MAKE}} -C alpine components BOARD={{.BOARD}}
 
   image:
     desc: Package the flashable .img.zst (BOARD=h700|rk3566)
@@ -175,7 +175,7 @@ tasks:
         set -eu
         release=$({{.MAKE}} name | tail -1)
         echo "board: {{.BOARD}}  release: $release"
-        NEXTUI_RELEASE="$release" {{.MAKE}} -C workspace/alpine image BOARD={{.BOARD}}
+        NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD={{.BOARD}}
 
   image-all:
     desc: Build kernel, rootfs and image for every supported board
@@ -184,15 +184,67 @@ tasks:
         set -eu
         for b in {{.BOARDS}}; do
           echo "=== $b ==="
-          {{.MAKE}} -C workspace/alpine components BOARD=$b
+          {{.MAKE}} -C alpine components BOARD=$b
           release=$({{.MAKE}} name | tail -1)
-          NEXTUI_RELEASE="$release" {{.MAKE}} -C workspace/alpine image BOARD=$b
+          NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD=$b
         done
 
   builder:
     desc: Build the Alpine builder container image locally
     cmds:
-      - '{{.MAKE}} -C workspace/alpine builder'
+      - '{{.MAKE}} -C alpine builder'
+
+  # ── build: the one command that produces an image ─────────────────────────
+  #
+  # This is the top of the stack and the only thing most people need to run.
+  # It drives the two trees in the only order that works:
+  #
+  #   1. builder     the Alpine foundation's toolchain container
+  #   2. components  alpine/ -- kernel, DTBs, rootfs. Foundation only, no NextUI.
+  #   3. payload     workspace/alpine/ -- the NextUI platform port compiled for
+  #                   the foundation we just built
+  #   4. image       alpine/ -- genimage packaging, stitching the payload onto
+  #                   the rootfs
+  #
+  # The payload has to come after components and the image after the payload,
+  # because the image stage copies the payload zip onto the SD-card image and
+  # the payload links against the exact musl/mesa the rootfs was built with.
+  #
+  # BOARD=<name> builds one board; no BOARD builds every supported board.
+  # Pass --skip-builder to reuse an existing builder image (it is unchanged
+  # unless alpine/container/ or alpine/packages.txt changed).
+
+  build:
+    desc: Build a flashable image (foundation + NextUI payload). BOARD=<name> for one board
+    cmds:
+      - |
+        set -eu
+        skip_builder=0
+        for arg in "$@"; do
+          case "$arg" in
+          --skip-builder) skip_builder=1 ;;
+          *) echo "unknown option: $arg" >&2; exit 2 ;;
+          esac
+        done
+
+        if [ "$skip_builder" -eq 0 ]; then
+          echo "==> [1/4] builder container"
+          {{.MAKE}} -C alpine builder
+        else
+          echo "==> [1/4] builder container (skipped)"
+        fi
+
+        for b in {{if .BOARD}}{{.BOARD}}{{else}}{{.BOARDS}}{{end}}; do
+          echo "==> [2/4] foundation: kernel + rootfs ($b)"
+          {{.MAKE}} -C alpine components BOARD="$b"
+
+          echo "==> [3/4] port: NextUI payload for alpine"
+          {{.MAKE}} -C alpine payload
+
+          echo "==> [4/4] image: packaging ($b)"
+          release=$({{.MAKE}} name | tail -1)
+          NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD="$b"
+        done
 
   # ── Device operations ─────────────────────────────────────────────────────
 

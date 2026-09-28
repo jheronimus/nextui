@@ -59,10 +59,13 @@ if [ ! -d "${BOARD_DIR}" ]; then
 fi
 
 # 1. Install the board's immutable trait payload.
-if [ -d "${BOARD_DIR}/traits" ]; then
+# The trait registry belongs to the NextUI platform port
+# (workspace/alpine/boards), not to the foundation board dir it is installed from.
+TRAITS_DIR="${TRAITS_DIR:-$(cd "${ALPINE_DIR}/../workspace/alpine/boards/${BOARD}/traits" && pwd)}"
+if [ -d "${TRAITS_DIR}" ]; then
 	rm -rf "${TARGET_DIR}/usr/share/minime/traits"
 	mkdir -p "${TARGET_DIR}/usr/share/minime/traits"
-	cp -a "${BOARD_DIR}/traits/." "${TARGET_DIR}/usr/share/minime/traits/"
+	cp -a "${TRAITS_DIR}/." "${TARGET_DIR}/usr/share/minime/traits/"
 fi
 
 # 2. Install the shared overlay (OpenRC services, system config, udev rules).

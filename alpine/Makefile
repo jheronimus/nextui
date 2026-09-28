@@ -29,9 +29,15 @@
 # This is also why the target is musl + panfrost: it makes the toolchain a
 # non-problem, because the container already *is* the target.
 
+# Layout, derived from this makefile's own location so nothing is hardcoded:
+#   ALPINE_DIR   = <root>/alpine          the Alpine foundation (this makefile)
+#   NEXTUI_ROOT  = <root>                 the NextUI checkout
+#   WORKSPACE_DIR= <root>/workspace       NextUI's component tree
+#   PORT_DIR     = <root>/workspace/alpine the NextUI platform port
 ALPINE_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-WORKSPACE_DIR := $(abspath $(ALPINE_DIR)/..)
-NEXTUI_ROOT := $(abspath $(WORKSPACE_DIR)/..)
+NEXTUI_ROOT := $(abspath $(ALPINE_DIR)/..)
+WORKSPACE_DIR := $(NEXTUI_ROOT)/workspace
+PORT_DIR := $(WORKSPACE_DIR)/alpine
 PLATFORM := alpine
 
 PODMAN_CMD ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null || echo podman)
@@ -96,15 +102,18 @@ endef
 
 help:
 	@printf '%s\n' \
-		"NextUI Alpine targets (normally invoked as: task <name>):" \
+		"NextUI Alpine foundation (normally invoked as: task <name>):" \
+		"" \
+		"  components  Build the kernel and rootfs for BOARD" \
+		"  image       Package the flashable .img.zst for BOARD" \
+		"  builder     Build the builder image locally" \
+		"  clean       Remove built outputs" \
 		"" \
 		"  payload     Compile the NextUI payload for the alpine platform" \
 		"  system      Assemble the payload into build/ (the makefile.copy step)" \
 		"  package     Zip build/ into releases/*.zip" \
-		"  components  Build the kernel and rootfs for BOARD" \
-		"  image       Package the flashable .img.zst for BOARD" \
-		"  builder     Build the builder image locally" \
-		"  clean       Remove built outputs"
+		"" \
+		"  or just run 'task build', which does all of it in the right order."
 
 # ── Payload ─────────────────────────────────────────────────────────────────
 #
@@ -122,7 +131,7 @@ PAYLOAD_COMPONENTS := all/nextui all/minarch keymon libmsettings show
 #     uid, instead of passing root-owned files between separate container runs.
 # The individual targets stay callable inside the container for debugging.
 payload:
-	$(call in_container,cd /nextui/workspace/alpine && \
+	$(call in_container,cd /nextui/alpine && \
 		$(MAKE) payload-components PLATFORM=$(PLATFORM) && \
 		$(MAKE) system PLATFORM=$(PLATFORM) && \
 		$(MAKE) package PLATFORM=$(PLATFORM))
@@ -138,21 +147,21 @@ payload:
 # from CONTAINER_ENV via -e.
 payload-components:
 	@echo "==> libmsettings"
-	$(MAKE) -C $(WORKSPACE_DIR)/alpine/libmsettings PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(PORT_DIR)/libmsettings PLATFORM=$(PLATFORM)
 	@echo "==> nextui"
 	$(MAKE) -C $(WORKSPACE_DIR)/all/nextui PLATFORM=$(PLATFORM)
 	@echo "==> minarch"
 	$(MAKE) -C $(WORKSPACE_DIR)/all/minarch PLATFORM=$(PLATFORM)
 	@echo "==> keymon"
-	$(MAKE) -C $(WORKSPACE_DIR)/alpine/keymon PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(PORT_DIR)/keymon PLATFORM=$(PLATFORM)
 	@echo "==> show"
-	$(MAKE) -C $(WORKSPACE_DIR)/alpine/show PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(PORT_DIR)/show PLATFORM=$(PLATFORM)
 
 # Assemble the compiled pieces into build/. This is our platform/makefile.copy,
 # replacing the ~50 hardcoded `cp` lines in NextUI's top-level makefile, which
 # we cannot extend with an `alpine` branch.
 system:
-	$(MAKE) -f $(ALPINE_DIR)/platform/makefile.copy PLATFORM=$(PLATFORM) \
+	$(MAKE) -f $(PORT_DIR)/platform/makefile.copy PLATFORM=$(PLATFORM) \
 		WORKSPACE_DIR=$(WORKSPACE_DIR) ALPINE_DIR=$(ALPINE_DIR) \
 		NEXTUI_ROOT=$(NEXTUI_ROOT)
 
@@ -174,14 +183,14 @@ package:
 # ── OS image ────────────────────────────────────────────────────────────────
 
 components:
-	$(call in_container,BOARD=$(BOARD) ALPINE_DIR=/nextui/workspace/alpine NEXTUI_ROOT=/nextui \
-		/nextui/workspace/alpine/scripts/build.sh components)
+	$(call in_container,BOARD=$(BOARD) ALPINE_DIR=/nextui/alpine NEXTUI_ROOT=/nextui \
+		/nextui/alpine/scripts/build.sh components)
 
 image:
-	$(call in_container,/nextui/workspace/alpine/image/build.sh \
+	$(call in_container,/nextui/alpine/image/build.sh \
 		--board $(BOARD) \
-		--input-dir /nextui/workspace/alpine/out/$(BOARD) \
-		--output-dir /nextui/workspace/alpine/out/$(BOARD) \
+		--input-dir /nextui/alpine/out/$(BOARD) \
+		--output-dir /nextui/alpine/out/$(BOARD) \
 		--payload-dir /nextui/releases \
 		--nextui-release "$(NEXTUI_RELEASE)")
 

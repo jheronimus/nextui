@@ -91,7 +91,7 @@ rk3566 | h700) ;;
 esac
 
 ALPINE_DIR="${ALPINE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-NEXTUI_ROOT="${NEXTUI_ROOT:-$(cd "${ALPINE_DIR}/../.." && pwd)}"
+NEXTUI_ROOT="${NEXTUI_ROOT:-$(cd "${ALPINE_DIR}/.." && pwd)}"
 BOARD_DIR="${ALPINE_DIR}/boards/${BOARD}"
 COMMON_DIR="${ALPINE_DIR}/boards/common"
 BOOTLOADER_DIR="${NEXTUI_ROOT}/workspace/alpine/bootloader/${BOARD}/out"

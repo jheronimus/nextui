@@ -1,10 +1,10 @@
 ---
 # Build the Alpine image for every supported board.
 #
-# Named alpine-*.yml because that is the one path outside workspace/alpine/ where
+# Named alpine-*.yml because that is the one path outside alpine/ where
 # we are allowed to add files: GitHub only reads workflows from the repo root,
 # and upstream NextUI has no file by this name, so a future upstream release can
-# never conflict with it. workspace/alpine/boards/check-upstream.sh enforces both
+# never conflict with it. alpine/check-upstream.sh enforces both
 # halves of that rule and runs first.
 #
 # Runner: ubuntu-24.04-arm. This is the whole reason the build has no
@@ -19,11 +19,13 @@ on:
   push:
     branches: ["**"]
     paths:
+      - 'alpine/**'
       - 'workspace/alpine/**'
       - 'Taskfile.yml'
       - '.github/workflows/alpine-*.yml'
   pull_request:
     paths:
+      - 'alpine/**'
       - 'workspace/alpine/**'
       - 'Taskfile.yml'
       - '.github/workflows/alpine-*.yml'
@@ -126,29 +128,24 @@ jobs:
           path: |
             ~/.cache/ccache
             ~/alpine-dl
-          key: alpine-${{ runner.arch }}-${{ hashFiles('workspace/alpine/**/APKBUILD', 'workspace/alpine/boards/*/tiny-*.config') }}
+          key: alpine-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}
           restore-keys: |
             alpine-${{ runner.arch }}-
 
-      - name: Build the builder container
-        run: task builder
-
-      # Kernel + rootfs. The long step (~30min/board cold, ccache makes rebuilds
-      # far quicker). Split from `payload` so a UI change does not re-trigger it.
-      - name: Build components
-        run: task components BOARD=${{ matrix.board }}
-
-      # NextUI itself, compiled natively in the same container.
-      - name: Build payload
-        run: task payload
-
-      - name: Package image
-        run: task image BOARD=${{ matrix.board }}
+      # One task, not four steps. CI should exercise exactly the path a person
+      # runs locally, otherwise the two drift and CI stops proving anything.
+      #
+      # This is the long step: ~30min/board cold, much quicker once ccache and
+      # the downloaded sources are restored above. It runs the whole chain --
+      # builder, then alpine/ (kernel + rootfs), then workspace/alpine/ (the
+      # NextUI port compiled against that rootfs), then genimage packaging.
+      - name: Build
+        run: task build BOARD=${{ matrix.board }}
 
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
           name: nextui-alpine-${{ matrix.board }}
-          path: workspace/alpine/out/${{ matrix.board }}/*.img.zst
+          path: alpine/out/${{ matrix.board }}/*.img.zst
           if-no-files-found: error
           retention-days: 14

@@ -11,9 +11,12 @@
 # shared libraries in build/SYSTEM/$(PLATFORM)/lib.
 
 PLATFORM ?= alpine
+# This file lives in the platform port at workspace/alpine/platform/, so the
+# port is ../.. and the Alpine foundation is three levels up at <root>/alpine.
 WORKSPACE_DIR ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
-ALPINE_DIR ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 NEXTUI_ROOT ?= $(abspath $(WORKSPACE_DIR)/..)
+ALPINE_DIR ?= $(NEXTUI_ROOT)/alpine
+PORT_DIR := $(WORKSPACE_DIR)/$(PLATFORM)
 
 BUILD := $(WORKSPACE_DIR)/build
 SYS := $(BUILD)/SYSTEM/$(PLATFORM)
