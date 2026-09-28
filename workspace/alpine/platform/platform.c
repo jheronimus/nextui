@@ -142,13 +142,13 @@ static void handleKeyEvent(int code, int pressed, uint32_t tick) {
 
 static void handleAbsEvent(int code, int value) {
 	if (code == axis_lx) {
-		pad.laxis.x = normalizeAxis(value, axis_invert_x);
+		pad.laxis.x = normalizeAxis(value, axis_lx_invert);
 	} else if (code == axis_ly) {
-		pad.laxis.y = normalizeAxis(value, axis_invert_y);
+		pad.laxis.y = normalizeAxis(value, axis_ly_invert);
 	} else if (code == axis_rx) {
-		pad.raxis.x = normalizeAxis(value, axis_invert_x);
+		pad.raxis.x = normalizeAxis(value, axis_rx_invert);
 	} else if (code == axis_ry) {
-		pad.raxis.y = normalizeAxis(value, axis_invert_y);
+		pad.raxis.y = normalizeAxis(value, axis_ry_invert);
 	}
 }
 
@@ -169,7 +169,7 @@ void PLAT_pollInput(void) {
 	pad.just_released = BTN_NONE;
 	pad.just_repeated = BTN_NONE;
 
-	if (has_analog) {
+	if (PLAT_hasLeftStick()) {
 		PAD_setAnalog(BTN_ID_ANALOG_LEFT, BTN_ID_ANALOG_RIGHT, pad.laxis.x, tick + PAD_REPEAT_DELAY);
 		PAD_setAnalog(BTN_ID_ANALOG_UP, BTN_ID_ANALOG_DOWN, pad.laxis.y, tick + PAD_REPEAT_DELAY);
 	}
