@@ -248,8 +248,9 @@ mkdosfs -F 32 -s 32 -n nextui "${BINARIES_DIR}/userdata.vfat"
 [ -f "${STAGE_DIR}/boot.scr" ] && MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" "${STAGE_DIR}/boot.scr" ::boot.scr
 for item in .minime .system Tools; do
 	if [ -e "${STAGE_DIR}/${item}" ]; then
-		MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" -s "${STAGE_DIR}/${item}" :: &&
+		if MTOOLS_SKIP_CHECK=1 mcopy -i "${BINARIES_DIR}/userdata.vfat" -s "${STAGE_DIR}/${item}" ::; then
 			MTOOLS_SKIP_CHECK=1 mattrib -i "${BINARIES_DIR}/userdata.vfat" +h "::${item}" || true
+		fi
 	fi
 done
 # Anything else in the stage (BASE/, BOOT/ etc. from the NextUI payload).
