@@ -18,7 +18,7 @@
 # The --platform is always linux/arm64: the target is aarch64 and the build
 # tools are run natively inside the container.
 
-FROM --platform=linux/arm64 docker.io/library/alpine:3.24
+FROM --platform=linux/arm64 docker.io/library/alpine:3.24.2
 
 # aarch64-native main + community repos only. bsdtar is provided by
 # libarchive-tools on Alpine 3.24 (no top-level bsdtar package).

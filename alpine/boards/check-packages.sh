@@ -19,7 +19,7 @@ set -eu
 ALPINE_ROOT="${ALPINE_ROOT:-$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)}"
 ALPINE_DIR="${ALPINE_DIR:-${ALPINE_ROOT}/alpine}"
 ALPINE_PKG_CACHE="${ALPINE_PKG_CACHE:-${TMPDIR:-/tmp}/alpine-apkindex}"
-BRANCH="${ALPINE_BRANCH:-edge}"
+BRANCH="${ALPINE_BRANCH:-v3.24}"
 ARCH="${ALPINE_ARCH:-aarch64}"
 REPOS="${ALPINE_REPOS:-main community}"
 MIRROR="${ALPINE_MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
