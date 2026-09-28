@@ -26,6 +26,12 @@ RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/main"      > /etc/apk/repos
 	echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
 
 # Each package on its own line so apk names the exact missing one on failure.
+# musl-dev below is the native aarch64 musl headers, and binutils/gcc are the
+# native aarch64 tools. There is no gcc-aarch64-alpine, binutils-aarch64-alpine
+# or musl-dev-aarch64 in Alpine -- those names exist in no repo. This builder
+# runs ON aarch64 and compiles natively, so the plain native packages are the
+# right ones and a cross-toolchain is not wanted at all. check-packages.sh
+# verifies every name here against the real APKINDEX.
 RUN apk add --no-cache --no-progress \
 		abuild \
 		alpine-sdk \
@@ -64,9 +70,8 @@ RUN apk add --no-cache --no-progress \
 		squashfs-tools \
 		util-linux \
 		# cross toolchain used by abuild for aarch64 targets
-		binutils-aarch64-alpine \
-		gcc-aarch64-alpine \
-		musl-dev-aarch64 \
+		binutils \
+		gcc \
 		# NextUI payload toolchain (mirrors workspace/*/makefile LDFLAGS)
 		alsa-lib-dev \
 		bzip2-dev \

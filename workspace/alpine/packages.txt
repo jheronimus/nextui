@@ -109,8 +109,6 @@ libpng
 zlib
 # libstdc++: C++ runtime for cores that need it.
 libstdc++
-# mimalloc: high-performance musl allocator.
-mimalloc
 
 # --- NextUI runtime requirements -------------------------------------------
 # This is the one place our package list genuinely diverges from Minime's.

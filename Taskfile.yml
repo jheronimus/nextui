@@ -74,6 +74,11 @@ tasks:
     desc: Run the fast checks that need no toolchain
     deps: [check-boards, check-shell]
 
+  check-packages:
+    desc: Verify every Alpine package name this project installs really exists
+    cmds:
+      - ./workspace/alpine/boards/check-packages.sh
+
   check-upstream:
     desc: Assert no NextUI file is edited (the core invariant of this fork)
     cmds:
@@ -95,6 +100,7 @@ tasks:
           workspace/alpine/boards/gentraits.sh \
           workspace/alpine/boards/check-boards.sh \
           workspace/alpine/boards/check-upstream.sh \
+          workspace/alpine/boards/check-packages.sh \
           workspace/alpine/scripts/build.sh \
           workspace/alpine/scripts/post-build.sh \
           workspace/alpine/scripts/system-image.sh \

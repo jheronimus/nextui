@@ -80,6 +80,11 @@ jobs:
             | sudo tar -xJ --strip-components=1 -C /usr/local/bin shellcheck-v${ver}/shellcheck
           shellcheck --version
 
+      # Runs before the expensive build: a wrong package name otherwise only
+      # shows up minutes into a container build, on the runner.
+      - name: Check package names
+        run: task check-packages
+
       - name: Validate
         run: task validate
 
