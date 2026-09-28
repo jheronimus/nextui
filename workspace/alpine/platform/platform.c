@@ -587,7 +587,8 @@ static void flipGame(void) {
 
 	updateEffect();
 	if (vid.blit && effect.type != EFFECT_NONE && vid.effect) {
-		renderCopy(vid.effect, &(SDL_Rect){0, 0, dst_rect.w, dst_rect.h}, &dst_rect);
+		SDL_Rect effect_rect = {0, 0, dst_rect.w, dst_rect.h};
+		renderCopy(vid.effect, &effect_rect, &dst_rect);
 	}
 
 	SDL_RenderPresent(vid.renderer);
