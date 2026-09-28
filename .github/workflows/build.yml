@@ -18,10 +18,6 @@ on:
       - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
-      board:
-        description: Board to build (blank = all)
-        required: false
-        default: ''
       kernel:
         description: Force a kernel rebuild
         type: boolean
@@ -79,10 +75,9 @@ jobs:
       fail-fast: false
       matrix:
         board: [h700, rk3566]
-    if: inputs.board == '' || inputs.board == matrix.board
     env:
       BOARD: ${{ matrix.board }}
-      FORCE_KERNEL_REBUILD: ${{ inputs.kernel && '1' || '0' }}
+      FORCE_KERNEL_REBUILD: ${{ github.event.inputs.kernel == 'true' && '1' || '0' }}
 
     steps:
       - name: Checkout
@@ -125,7 +120,7 @@ jobs:
   release:
     name: Publish Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
