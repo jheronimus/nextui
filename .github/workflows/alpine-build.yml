@@ -68,8 +68,17 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           version: 3.53.1
 
+      # Pin shellcheck. The distro package drifts (Ubuntu 24.04 ships 0.9.0,
+      # local dev is often much newer) and the two disagree on severity
+      # classification, so an unpinned `apt-get install shellcheck` makes CI
+      # fail on findings that never reproduce locally.
       - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+        run: |
+          set -euo pipefail
+          ver=0.10.0
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.aarch64.tar.xz" \
+            | sudo tar -xJ --strip-components=1 -C /usr/local/bin shellcheck-v${ver}/shellcheck
+          shellcheck --version
 
       - name: Validate
         run: task validate

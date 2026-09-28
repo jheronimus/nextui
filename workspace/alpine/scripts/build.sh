@@ -348,8 +348,10 @@ assemble_rootfs() {
 		cp -a "${ALPINE_OUTPUT_DIR}/boot/lib/modules/." "${ALPINE_ROOTFS_DIR}/lib/modules/"
 		TK_KVER=$(find "${ALPINE_ROOTFS_DIR}/lib/modules" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)
 		TK_KVER=$(basename "$TK_KVER" 2>/dev/null || true)
-		[ -n "${TK_KVER}" ] && chroot "${ALPINE_ROOTFS_DIR}" \
-			/sbin/depmod -a "${TK_KVER}" 2>/dev/null || true
+		if [ -n "${TK_KVER}" ]; then
+			chroot "${ALPINE_ROOTFS_DIR}" \
+				/sbin/depmod -a "${TK_KVER}" 2>/dev/null || true
+		fi
 	fi
 
 	# Unmount bind-mounted pseudo filesystems.
