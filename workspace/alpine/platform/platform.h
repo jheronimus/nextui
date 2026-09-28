@@ -76,11 +76,10 @@ int PLAT_hasRightStick(void);
 #define BTN_FN3 BTN_NONE
 #define BTN_FN3_NAME ""
 
-//////////////////////////////////////
-// Hardware & Peripheral Capabilities
+#include <stdbool.h>
 
-int PLAT_hasBluetooth(void);
-int PLAT_hasWifi(void);
+bool PLAT_hasBluetooth(void);
+bool PLAT_hasWifi(void);
 const char *PLAT_getWifiInterface(void);
 int PLAT_hasLid(void);
 

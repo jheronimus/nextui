@@ -974,6 +974,7 @@ ConnectionStrength PLAT_connectionStrength(void) {
 //////////////////////////////////////
 
 // We use the generic wifi implementation here
+#define WIFI_SOCK_DIR "/var/run/wpa_supplicant"
 #include "generic_wifi.c"
 
 //////////////////////////////////////

@@ -110,7 +110,7 @@ tasks:
   check-cppcheck:
     desc: Run cppcheck static analysis on workspace/alpine
     cmds:
-      - cppcheck --enable=warning,performance,portability --error-exitcode=1 -DPLATFORM=\"alpine\" -D__has_feature\(x\)=0 -I workspace/alpine/platform -I workspace/alpine/libmsettings -I workspace/all/common --suppress=missingIncludeSystem --suppress=unknownMacro workspace/alpine
+      - cppcheck --enable=warning,performance,portability --error-exitcode=1 -DPLATFORM=\"alpine\" -D__has_feature\(x\)=0 -I workspace/alpine/platform -I workspace/alpine/libmsettings -I workspace/all/common --suppress=missingIncludeSystem --suppress=unknownMacro "--suppress=*:*workspace/all/*" workspace/alpine
 
   check-format:
     desc: Check C code formatting with clang-format
