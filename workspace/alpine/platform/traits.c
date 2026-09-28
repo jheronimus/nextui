@@ -97,9 +97,11 @@ typedef struct {
 	size_t max_len;
 } TraitField;
 
+// clang-format off
 #define STR_BIND(key, var) {key, TYPE_STRING, var, sizeof(var)}
 #define INT_BIND(key, var) {key, TYPE_INT, &var, 0}
 #define ASPECT_BIND(key, var) {key, TYPE_ASPECT, &var, 0}
+// clang-format on
 
 static const TraitField TRAIT_FIELDS[] = {
 	STR_BIND("device_id", device_id),
