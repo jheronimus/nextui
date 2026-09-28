@@ -12,12 +12,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "api.h"
+// clang-format off
 #include "defines.h"
 #include "platform.h"
+#include "api.h"
 #include "scaler.h"
 #include "traits.h"
 #include "utils.h"
+// clang-format on
 
 #include <linux/input.h>
 

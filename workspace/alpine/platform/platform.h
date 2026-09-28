@@ -175,6 +175,8 @@ int PLAT_hasLid(void);
 #define MUTE_VOLUME_RAW 0
 #define SAMPLES 400 // fix for (most) fceumm underruns
 
+#include "defines.h"
+
 ///////////////////////////////
 
 #endif
