@@ -82,12 +82,18 @@ allowed() {
 # a file that exists but has not been `git add`ed is still checked.
 
 # Committed changes to files upstream also has: these are MODIFICATIONS.
-modified="$(git diff --name-only "$BASE" -- . || true)"
+# --diff-filter is essential: a plain `git diff --name-only` also lists files
+# this fork ADDED, which would then be judged as modifications of upstream files
+# that do not exist. M = modified, A = added, D = deleted.
+modified="$(git diff --name-only --diff-filter=M "$BASE" -- . || true)"
+added="$(git diff --name-only --diff-filter=A "$BASE" -- . || true)"
 
 # Files that exist here but not in the base: these are ADDITIONS. An addition
 # cannot conflict with a future upstream merge unless upstream later creates a
 # file at the same path, which is why the allowlist is explicit rather than open.
 untracked="$(git ls-files --others --exclude-standard || true)"
+added="$added
+$untracked"
 
 mod_violations=""
 for f in $modified; do
@@ -106,7 +112,7 @@ if [ -n "$new_violations" ]; then
 fi
 
 n_mod=$(echo "$modified" | grep -c . || true)
-n_new=$(echo "$untracked" | grep -c . || true)
+n_new=$(echo "$added" | grep -c . || true)
 log "$n_mod modified, $n_new added -- all within the allowed paths"
 
 # --- deletions --------------------------------------------------------------
