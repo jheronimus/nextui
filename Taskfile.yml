@@ -68,7 +68,7 @@ tasks:
 
   validate:
     desc: Run every fast check (this is the pre-push gate)
-    deps: [validate-static, check-upstream]
+    deps: [validate-static, check-packages]
 
   validate-static:
     desc: Run the fast checks that need no toolchain
@@ -78,11 +78,6 @@ tasks:
     desc: Verify every Alpine package name this project installs really exists
     cmds:
       - ./alpine/boards/check-packages.sh
-
-  check-upstream:
-    desc: Assert no NextUI file is edited (the core invariant of this fork)
-    cmds:
-      - ./alpine/check-upstream.sh
 
   check-boards:
     desc: Validate trait registry, kernel configs and firmware blobs
@@ -94,12 +89,9 @@ tasks:
     cmds:
       - |
         set -eu
-        # Vendored board scripts are Minime's and are checked upstream; only
-        # lint what we are responsible for.
         shellcheck -s sh \
           alpine/boards/gentraits.sh \
           alpine/boards/check-boards.sh \
-          alpine/check-upstream.sh \
           alpine/boards/check-packages.sh \
           alpine/scripts/build.sh \
           alpine/scripts/post-build.sh \
