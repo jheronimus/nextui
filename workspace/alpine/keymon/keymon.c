@@ -11,7 +11,6 @@
 
 #include <msettings.h>
 
-#include "settings.h"
 #include "traits.h"
 #include "utils.h"
 
@@ -24,7 +23,7 @@
 #define AUDIO_SH "/usr/share/minime/scripts/audio.sh"
 #define BLUETOOTHD_PID "/run/bluetoothd.pid"
 
-static int input_fds[7] = {0};
+static int input_fds[8] = {0};
 static int input_count = 0;
 
 static uint32_t now_ms(void) {
@@ -186,6 +185,7 @@ static void initInputDevices(void) {
 		input_power,
 		input_volume,
 		input_menu,
+		input_lid,
 		audio_jack_device_name,
 	};
 	input_count = 0;
@@ -237,6 +237,11 @@ static void pollInputFd(int fd, int menu_code, KeymonState* state, uint32_t now)
 	while (read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
 		if (ev.type == EV_SW && ev.code == SW_HEADPHONE_INSERT) {
 			SetJack(ev.value);
+		} else if (ev.type == EV_SW && ev.code == SW_LID) {
+			if (ev.value == 1) {
+				// Lid closed: suspend to RAM
+				system("echo mem > /sys/power/state");
+			}
 		} else if (ev.type == EV_KEY && ev.value <= REPEAT) {
 			handleKeyEvent(ev.code, ev.value, menu_code, state, now);
 		}

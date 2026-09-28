@@ -7,21 +7,18 @@ endif
 
 TARGET=msettings
 
-.PHONY: build
-.PHONY: clean
+.PHONY: build clean
 
 CC = $(CROSS_COMPILE)gcc
 
-SYSROOT     := $(shell $(CC) --print-sysroot)
-
+SYSROOT := $(shell $(CC) --print-sysroot)
 INCLUDEDIR = $(SYSROOT)/usr/include
 CFLAGS = -I$(INCLUDEDIR) -I../platform -I../../all/common -DPLATFORM=\"$(PLATFORM)\"
-LDFLAGS = -ldl -lrt -s
+LDFLAGS = -ltinyalsa -ldl -lrt -lm -s
+OPTM = -Ofast
 
-OPTM=-Ofast
-
-SOURCES = $(TARGET).c ../platform/traits.c ../../all/common/utils.c
-OBJECTS = $(TARGET).o traits.o utils.o
+SOURCES = $(TARGET).c ../platform/traits.c ../../all/common/utils.c ../../all/common/displaycal.c
+OBJECTS = $(TARGET).o traits.o utils.o displaycal.o
 
 build:
 	mkdir -p "$(PREFIX)/include" "$(PREFIX)/lib"
@@ -29,6 +26,12 @@ build:
 	$(CC) -shared -o "lib$(TARGET).so" $(OBJECTS) $(LDFLAGS)
 	cp "$(TARGET).h" "$(PREFIX)/include"
 	cp "lib$(TARGET).so" "$(PREFIX)/lib"
+	@if [ -n "$(PREFIX_LOCAL)" ]; then \
+		mkdir -p "$(PREFIX_LOCAL)/include" "$(PREFIX_LOCAL)/lib"; \
+		cp "$(TARGET).h" "$(PREFIX_LOCAL)/include/"; \
+		cp "lib$(TARGET).so" "$(PREFIX_LOCAL)/lib/"; \
+	fi
+
 clean:
 	rm -f *.o
 	rm -f "lib$(TARGET).so"

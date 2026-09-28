@@ -11,8 +11,6 @@
 # shared libraries in build/SYSTEM/$(PLATFORM)/lib.
 
 PLATFORM ?= alpine
-# This file lives in the platform port at workspace/alpine/platform/, so the
-# port is ../.. and the Alpine foundation is three levels up at <root>/alpine.
 WORKSPACE_DIR ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
 NEXTUI_ROOT ?= $(abspath $(WORKSPACE_DIR)/..)
 ALPINE_DIR ?= $(NEXTUI_ROOT)/alpine
@@ -33,21 +31,46 @@ $(PLATFORM):
 	cp -f $(A)/minarch/build/$(PLATFORM)/minarch.elf $(SYS)/bin/
 
 	@echo "==> settings + libmsettings"
-	cp -f $(P)/libmsettings/build/$(PLATFORM)/libmsettings.so $(SYS)/lib/
+	cp -f $(P)/libmsettings/libmsettings.so $(SYS)/lib/
+	@if [ -f $(A)/settings/build/$(PLATFORM)/settings.elf ]; then \
+		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Settings.pak"; \
+		cp -f $(A)/settings/build/$(PLATFORM)/settings.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Settings.pak/"; \
+	fi
 
 	@echo "==> input"
 	cp -f $(P)/keymon/build/$(PLATFORM)/keymon.elf $(SYS)/bin/
 
 	@echo "==> first-boot show (device.cfg generator)"
-	@# show is staged for the boot partition, not the system one.
 	@if [ -f $(P)/show/build/$(PLATFORM)/show.elf ]; then \
 		cp -f $(P)/show/build/$(PLATFORM)/show.elf $(SYS)/bin/; \
 	fi
 
+	@echo "==> tools and extras"
+	@if [ -f $(A)/nextval/build/$(PLATFORM)/nextval.elf ]; then \
+		cp -f $(A)/nextval/build/$(PLATFORM)/nextval.elf $(SYS)/bin/; \
+	fi
+	@if [ -f $(A)/clock/build/$(PLATFORM)/clock.elf ]; then \
+		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Clock.pak"; \
+		cp -f $(A)/clock/build/$(PLATFORM)/clock.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Clock.pak/"; \
+	fi
+	@if [ -f $(A)/minput/build/$(PLATFORM)/minput.elf ]; then \
+		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Input.pak"; \
+		cp -f $(A)/minput/build/$(PLATFORM)/minput.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Input.pak/"; \
+	fi
+	@if [ -f $(A)/libbatmondb/build/$(PLATFORM)/libbatmondb.so ]; then \
+		cp -f $(A)/libbatmondb/build/$(PLATFORM)/libbatmondb.so $(SYS)/lib/; \
+		cp -f $(A)/batmon/build/$(PLATFORM)/batmon.elf $(SYS)/bin/; \
+		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Battery.pak"; \
+		cp -f $(A)/battery/build/$(PLATFORM)/battery.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Battery.pak/"; \
+	fi
+	@if [ -f $(A)/libgametimedb/build/$(PLATFORM)/libgametimedb.so ]; then \
+		cp -f $(A)/libgametimedb/build/$(PLATFORM)/libgametimedb.so $(SYS)/lib/; \
+		cp -f $(A)/gametimectl/build/$(PLATFORM)/gametimectl.elf $(SYS)/bin/; \
+		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Game Tracker.pak"; \
+		cp -f $(A)/gametime/build/$(PLATFORM)/gametime.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Game Tracker.pak/"; \
+	fi
+
 	@echo "==> runtime libraries"
-	@# NextUI's minarch dlopens these at runtime rather than linking them, so
-	@# they must exist in the rootfs even though the payload links against the
-	@# image's own copies. See alpine/packages.txt for the apk equivalents.
 	@for so in libsamplerate.so.0 libzip.so.5 libbz2.so.1.0 liblzma.so.5 \
 	          libzstd.so.1 liblz4.so.1 libcrypto.so.3; do \
 		src=""; \
@@ -63,10 +86,6 @@ $(PLATFORM):
 		"$(shell cd $(NEXTUI_ROOT) && make --no-print-directory name)" \
 		"$(shell cd $(NEXTUI_ROOT) && git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
 		> $(SYS)/version.txt
-	@# PLAT_getOsVersionInfo reads /etc/nextui-version inside the image. It is
-	@# staged there by image/build.sh when it packs the rootfs -- deliberately
-	@# NOT written here, because "here" is the build host and that would clobber
-	@# the developer's or runner's real /etc.
 	@echo "  (version.txt staged; image/build.sh installs it to /etc/nextui-version)"
 
 	@echo "assembled $(SYS)"

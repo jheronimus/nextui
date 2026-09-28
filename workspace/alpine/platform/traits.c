@@ -134,10 +134,10 @@ static const TraitField TRAIT_FIELDS[] = {
 	INT_BIND("key_right", button_keycodes[BTN_ID_DPAD_RIGHT]),
 	INT_BIND("key_a", button_keycodes[BTN_ID_A]),
 	INT_BIND("key_b", button_keycodes[BTN_ID_B]),
-	INT_BIND("key_c", button_keycodes[BTN_ID_C]),
+	INT_BIND("key_c", button_keycodes[BTN_ID_L3]),
 	INT_BIND("key_x", button_keycodes[BTN_ID_X]),
 	INT_BIND("key_y", button_keycodes[BTN_ID_Y]),
-	INT_BIND("key_z", button_keycodes[BTN_ID_Z]),
+	INT_BIND("key_z", button_keycodes[BTN_ID_R3]),
 	INT_BIND("key_l1", button_keycodes[BTN_ID_L1]),
 	INT_BIND("key_r1", button_keycodes[BTN_ID_R1]),
 	INT_BIND("key_l2", button_keycodes[BTN_ID_L2]),
@@ -298,6 +298,15 @@ static void initTraitDefaults(void) {
 	gpu_hdmi_height = 720;
 	copyText(audio_card, sizeof(audio_card), "default");
 	copyText(audio_mixer, sizeof(audio_mixer), "Master");
+}
+
+static char* trimWhitespace(char* str) {
+	while (isspace((unsigned char)*str)) str++;
+	if (*str == 0) return str;
+	char* end = str + strlen(str) - 1;
+	while (end > str && isspace((unsigned char)*end)) end--;
+	end[1] = '\0';
+	return str;
 }
 
 static int parseTraitsFile(const char* path) {

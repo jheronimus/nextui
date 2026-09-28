@@ -803,9 +803,9 @@ void PLAT_enableBacklight(int enable) {
 	}
 }
 
-void PLAT_powerOff(void) {
+void PLAT_powerOff(int reboot) {
 	system("rm -f /tmp/minui_exec && sync");
-	sleep(2);
+	sleep(1);
 
 	SetRawVolume(MUTE_VOLUME_RAW);
 	PLAT_enableBacklight(0);
@@ -816,6 +816,11 @@ void PLAT_powerOff(void) {
 	PWR_quit();
 	GFX_quit();
 
+	if (reboot) {
+		system("reboot");
+	} else {
+		system("poweroff");
+	}
 	exit(0);
 }
 

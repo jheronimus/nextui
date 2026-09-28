@@ -152,10 +152,22 @@ payload-components:
 	$(MAKE) -C $(WORKSPACE_DIR)/all/nextui PLATFORM=$(PLATFORM)
 	@echo "==> minarch"
 	$(MAKE) -C $(WORKSPACE_DIR)/all/minarch PLATFORM=$(PLATFORM)
+	@echo "==> settings"
+	$(MAKE) -C $(WORKSPACE_DIR)/all/settings PLATFORM=$(PLATFORM)
 	@echo "==> keymon"
 	$(MAKE) -C $(PORT_DIR)/keymon PLATFORM=$(PLATFORM)
 	@echo "==> show"
 	$(MAKE) -C $(PORT_DIR)/show PLATFORM=$(PLATFORM)
+	@echo "==> tools"
+	$(MAKE) -C $(WORKSPACE_DIR)/all/nextval PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/clock PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/minput PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/libbatmondb PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/batmon PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/battery PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/libgametimedb PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/gametimectl PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/gametime PLATFORM=$(PLATFORM)
 
 # Assemble the compiled pieces into build/. This is our platform/makefile.copy,
 # replacing the ~50 hardcoded `cp` lines in NextUI's top-level makefile, which

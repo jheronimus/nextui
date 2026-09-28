@@ -65,8 +65,16 @@ int PLAT_hasRightStick(void);
 #define BTN_WAKE BTN_POWER
 #define BTN_MOD_VOLUME BTN_NONE
 #define BTN_MOD_BRIGHTNESS BTN_MENU
+#define BTN_MOD_COLORTEMP BTN_SELECT
 #define BTN_MOD_PLUS BTN_PLUS
 #define BTN_MOD_MINUS BTN_MINUS
+
+#define BTN_FN1 BTN_L3
+#define BTN_FN2 BTN_R3
+#define BTN_FN1_NAME "L3"
+#define BTN_FN2_NAME "R3"
+#define BTN_FN3 BTN_NONE
+#define BTN_FN3_NAME ""
 
 //////////////////////////////////////
 // Hardware & Peripheral Capabilities

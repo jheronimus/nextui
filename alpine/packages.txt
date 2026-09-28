@@ -66,6 +66,7 @@ openresolv
 
 # --- Wi-Fi + regulatory ----------------------------------------------------
 iwd
+wpa_supplicant
 wireless-regdb
 
 # --- Bluetooth (with audio sink) -------------------------------------------
@@ -79,6 +80,7 @@ alsa-lib
 alsa-utils
 alsa-plugins
 libsamplerate
+tinyalsa
 
 # --- GLES / DRM / GBM / KMS / Vulkan (Mesa Panfrost & PanVK) --------------
 mesa

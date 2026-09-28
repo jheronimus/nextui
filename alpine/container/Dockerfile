@@ -74,7 +74,9 @@ RUN apk add --no-cache --no-progress \
 		gcc \
 		# NextUI payload toolchain (mirrors workspace/*/makefile LDFLAGS)
 		alsa-lib-dev \
+		tinyalsa-dev \
 		bzip2-dev \
+		g++ \
 		libdrm-dev \
 		libsamplerate-dev \
 		mesa-dev \
