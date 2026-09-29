@@ -184,6 +184,15 @@ if [ -d "${STAGE_DIR}/EXTRAS" ]; then
 	cp -a "${STAGE_DIR}/EXTRAS/." "${STAGE_DIR}/"
 	rm -rf "${STAGE_DIR}/EXTRAS"
 fi
+if [ -d "${STAGE_DIR}/Tools" ]; then
+	for t in "${STAGE_DIR}"/Tools/*; do
+		[ -d "$t" ] || continue
+		case "$(basename "$t")" in
+		alpine | common) ;;
+		*) rm -rf "$t" ;;
+		esac
+	done
+fi
 chmod +x "${STAGE_DIR}/.system/alpine/paks/MinUI.pak/launch.sh" 2>/dev/null || true
 
 cat <<'EOF' >"${STAGE_DIR}/.minime/ui.env"

@@ -11,7 +11,7 @@
 # Bump it only together with re-auditing the series.
 pkgname=tinykernel
 pkgver=7.1.5
-pkgrel=0
+pkgrel=1
 pkgdesc="NextUI minimal Linux kernel + DTBs for Alpine"
 url="https://github.com/LoveRetro/NextUI"
 arch="aarch64"

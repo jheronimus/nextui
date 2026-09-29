@@ -71,9 +71,10 @@ log_console "Waiting for block devices..."
 for _i in 1 2 3 4 5 6 7 8 9 10; do
 	for dev in /dev/mmcblk*p1 /dev/vd*1 /dev/sd*1; do
 		[ -b "$dev" ] || continue
-		if [ "$(blkid -s LABEL -o value "$dev" 2>/dev/null)" = "minime" ]; then
+		card_label="$(blkid -s LABEL -o value "$dev" 2>/dev/null || true)"
+		if [ "$card_label" = "nextui" ] || [ "$card_label" = "minime" ]; then
 			CARD_DEV="$dev"
-			log_console "Checking MINIME FAT filesystem on $CARD_DEV..."
+			log_console "Checking FAT filesystem ($card_label) on $CARD_DEV..."
 			run_fat_fsck
 			finish_card_mount && break
 			CARD_DEV=""
@@ -167,15 +168,17 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 	# grown in place, so the volume is wiped and recreated at full size below.
 	STAGE=/tmp/stage
 	mkdir -p "$STAGE"
-	if ! mount -t tmpfs -o size=512M tmpfs "$STAGE" 2>/dev/null; then
+	if ! mount -t tmpfs -o size=80% tmpfs "$STAGE" 2>/dev/null; then
 		log_card "ERROR: failed to mount staging tmpfs at $STAGE"
 		exec sh
 	fi
+	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 	log_card "[INITRAMFS] Staging FAT contents into $STAGE..."
-	cp -a /mnt/card/. "$STAGE"/ 2>/dev/null || {
-		log_card "ERROR: failed to stage FAT contents"
+	if ! CP_OUT="$(cp -a /mnt/card/. "$STAGE"/ 2>&1)"; then
+		log_card "ERROR: failed to stage FAT contents: ${CP_OUT}"
 		exec sh
-	}
+	fi
+	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 
 	# Release the vfat mount before re-reading the partition table so partprobe
 	# re-reads the grown partition cleanly instead of invalidating the mount.
@@ -214,7 +217,7 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 
 	# Wipe and recreate FAT32 at the full resized partition size.
 	log_card "[INITRAMFS] Recreating FAT32 on $CARD_DEV..."
-	MKFS_OUT="$(chroot /mnt/system mkfs.vfat -F 32 -s 32 -n minime "$CARD_DEV" 2>&1)"
+	MKFS_OUT="$(chroot /mnt/system mkfs.vfat -F 32 -s 32 -n nextui "$CARD_DEV" 2>&1)"
 	MKFS_RC=$?
 	log_card "[INITRAMFS] mkfs.vfat output: ${MKFS_OUT} (exit ${MKFS_RC})"
 	if [ "$MKFS_RC" -ne 0 ]; then
@@ -227,11 +230,13 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 		exec sh
 	}
 
+	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 	log_card "[INITRAMFS] Restoring staged FAT contents..."
-	cp -a "$STAGE"/. /mnt/card/ 2>/dev/null || {
-		log_card "ERROR: failed to restore FAT contents"
+	if ! RESTORE_OUT="$(cp -a "$STAGE"/. /mnt/card/ 2>&1)"; then
+		log_card "ERROR: failed to restore FAT contents: ${RESTORE_OUT}"
 		exec sh
-	}
+	fi
+	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 	BOOT_LOG_DIR="/mnt/card"
 
 	# Re-hide the system directories (mkfs.vfat resets the hidden attribute).
