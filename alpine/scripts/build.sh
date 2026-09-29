@@ -154,6 +154,7 @@ build_local_apks() {
 	export CBUILD CHOST CARCH REPODEST
 
 	mkdir -p "${ALPINE_PACKAGES_DIR}" "${ALPINE_BUILD_DIR}"
+	find "${ALPINE_PACKAGES_DIR}" -name "*APKINDEX*" -delete 2>/dev/null || true
 
 	log "updating apk repositories index..."
 	sudo apk update
