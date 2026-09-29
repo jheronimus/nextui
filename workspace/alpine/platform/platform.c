@@ -281,6 +281,11 @@ const char *PLAT_getWifiInterface(void) {
 //////////////////////////////////////
 // Power, Backlight & System Management
 
+void PLAT_initPlatform(void) {
+	ensure_traits();
+	if (MINIME_traitAvailable(screen_blank_path)) putInt(screen_blank_path, 0);
+}
+
 void PLAT_enableBacklight(int enable) {
 	if (enable) {
 		if (MINIME_traitAvailable(screen_blank_path)) putInt(screen_blank_path, 0);
