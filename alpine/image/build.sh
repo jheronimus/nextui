@@ -177,11 +177,11 @@ fi
 # layout uses hidden dot-directories, so move them in and hide them.
 mkdir -p "${STAGE_DIR}/.system"
 if [ -d "${STAGE_DIR}/SYSTEM" ]; then
-	mv "${STAGE_DIR}/SYSTEM/." "${STAGE_DIR}/.system/"
+	cp -a "${STAGE_DIR}/SYSTEM/." "${STAGE_DIR}/.system/"
 	rm -rf "${STAGE_DIR}/SYSTEM"
 fi
 if [ -d "${STAGE_DIR}/EXTRAS" ]; then
-	cp -R "${STAGE_DIR}/EXTRAS/." "${STAGE_DIR}/"
+	cp -a "${STAGE_DIR}/EXTRAS/." "${STAGE_DIR}/"
 	rm -rf "${STAGE_DIR}/EXTRAS"
 fi
 chmod +x "${STAGE_DIR}/.system/alpine/paks/MinUI.pak/launch.sh" 2>/dev/null || true
