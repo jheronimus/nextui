@@ -144,6 +144,29 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload to Testing Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view testing >/dev/null 2>&1; then
+            gh release create testing \
+              --prerelease \
+              --title "Latest images and update packages" \
+              --notes "Rolling release for testing on device" || true
+          fi
+          for f in alpine/out/${{ matrix.board }}/*.img.zst alpine/out/${{ matrix.board }}/*.tar.zst; do
+            [ -f "$f" ] || continue
+            for attempt in 1 2 3 4 5; do
+              if gh release upload testing "$f" --clobber; then
+                break
+              fi
+              echo "Upload attempt $attempt failed, retrying..."
+              sleep 5
+            done
+          done
+
+
   release:
     name: Publish Release
     needs: build
