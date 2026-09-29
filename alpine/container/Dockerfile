@@ -109,20 +109,16 @@ RUN addgroup -g ${BUILDER_GID} builder 2>/dev/null || true \
 	&& echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder \
 	&& chmod 0440 /etc/sudoers.d/builder
 
-# abuild signing key. Generated here rather than copied: this is OUR key, not a
-# vendored one. Losing it only means locally-built APKs are unsigned, which the
-# rootfs install already tolerates via --allow-untrusted.
-#
-# abuild-keygen has no option to choose the key name: it always names the key
-# "${USER}-$(date +%s)". So the path cannot be hardcoded here. Instead let the
-# tool do its job -- -a generates the key and records PACKAGER_PRIVKEY in
-# abuild.conf, -i installs the public key into /etc/apk/keys -- and only append
-# our own paths afterwards, with >> so PACKAGER_PRIVKEY survives.
-RUN mkdir -p /home/builder/.abuild /etc/apk/keys \
-	&& chown -R builder:builder /home/builder/.abuild \
-	&& su builder -c '/usr/bin/abuild-keygen -a -i -n' \
+# abuild signing key. Fixed repo key to ensure cached packages across container
+# builds and CI runs maintain consistent and trusted signatures.
+COPY keys/nextui-alpine.rsa /home/builder/.abuild/nextui-alpine.rsa
+COPY keys/nextui-alpine.rsa.pub /etc/apk/keys/nextui-alpine.rsa.pub
+RUN chown -R builder:builder /home/builder/.abuild \
 	&& chmod 700 /home/builder/.abuild \
+	&& chmod 600 /home/builder/.abuild/nextui-alpine.rsa \
+	&& chmod 644 /etc/apk/keys/nextui-alpine.rsa.pub \
 	&& printf '%s\n' \
+		'PACKAGER_PRIVKEY="/home/builder/.abuild/nextui-alpine.rsa"' \
 		'REPODEST="/alpine-output/packages/main"' \
 		'SRCDEST="/alpine-dl/src"' \
 		'BUILDDIR="/alpine-output/build"' \

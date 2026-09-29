@@ -110,10 +110,10 @@ jobs:
             ~/alpine-ccache
             ~/alpine-dl
             ~/alpine-output/${{ matrix.board }}/packages
-          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
+          key: alpine-v2-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
           restore-keys: |
-            alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-
-            alpine-${{ matrix.board }}-${{ runner.arch }}-
+            alpine-v2-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-
+            alpine-v2-${{ matrix.board }}-${{ runner.arch }}-
 
       - name: Build
         run: task build BOARD=${{ matrix.board }}
@@ -132,7 +132,7 @@ jobs:
             ~/alpine-ccache
             ~/alpine-dl
             ~/alpine-output/${{ matrix.board }}/packages
-          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
+          key: alpine-v2-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
 
       - name: Upload image
         uses: actions/upload-artifact@v4
