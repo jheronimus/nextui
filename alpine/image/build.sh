@@ -200,7 +200,7 @@ JSON
 # --- 3. Update package -------------------------------------------------------
 
 PKG_NAME="nextui-alpine-${BOARD}-${NEXTUI_RELEASE}"
-(cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
+(cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 -T0 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
 cp -f "${OUTPUT_DIR}/${PKG_NAME}.tar.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.tar.zst"
 log_stage "update package: ${OUTPUT_DIR}/${PKG_NAME}.tar.zst"
 
@@ -298,7 +298,7 @@ sed -i "s/__IMAGE_NAME__/${PKG_NAME}.img/g" "${ROOTPATH_TMP}/genimage.cfg"
 genimage --rootpath "${ROOTPATH_TMP}" --tmppath "${WORK_TMP}/genimage.tmp" \
 	--inputpath "${BINARIES_DIR}" --outputpath "${OUTPUT_DIR}" \
 	--config "${ROOTPATH_TMP}/genimage.cfg"
-zstd -q -9 -f "${OUTPUT_DIR}/${PKG_NAME}.img" -o "${OUTPUT_DIR}/${PKG_NAME}.img.zst"
+zstd -q -9 -T0 -f "${OUTPUT_DIR}/${PKG_NAME}.img" -o "${OUTPUT_DIR}/${PKG_NAME}.img.zst"
 rm -f "${OUTPUT_DIR}/${PKG_NAME}.img"
 cp -f "${OUTPUT_DIR}/${PKG_NAME}.img.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.img.zst"
 log_stage "image: ${OUTPUT_DIR}/${PKG_NAME}.img.zst"

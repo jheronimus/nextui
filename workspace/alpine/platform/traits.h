@@ -26,8 +26,8 @@ extern char device_id[MINIME_TRAIT_NAME_MAX];
 extern char device_model[MINIME_TRAIT_PATH_MAX];
 
 // [screen]
-extern int screen_width;
-extern int screen_height;
+extern int trait_screen_width;
+extern int trait_screen_height;
 extern int screen_rotation;
 extern int screen_padding;
 extern int screen_row_count;

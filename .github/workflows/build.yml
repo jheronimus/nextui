@@ -103,14 +103,16 @@ jobs:
           df -h /
 
       - name: Restore cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
+        id: cache-restore
         with:
           path: |
             ~/alpine-ccache
             ~/alpine-dl
             ~/alpine-output/${{ matrix.board }}/packages
-          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}
+          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
           restore-keys: |
+            alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-
             alpine-${{ matrix.board }}-${{ runner.arch }}-
 
       - name: Build
@@ -119,7 +121,18 @@ jobs:
       - name: Fix cache permissions
         if: always()
         run: |
+          mkdir -p ~/alpine-ccache ~/alpine-dl ~/alpine-output/${{ matrix.board }}/packages
           sudo chmod -R a+rX ~/alpine-ccache ~/alpine-dl ~/alpine-output 2>/dev/null || true
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/alpine-ccache
+            ~/alpine-dl
+            ~/alpine-output/${{ matrix.board }}/packages
+          key: alpine-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
 
       - name: Upload image
         uses: actions/upload-artifact@v4

@@ -9,18 +9,18 @@
 //////////////////////////////////////
 // Display (Native panel & layout)
 
-extern int screen_width;
-extern int screen_height;
+extern int trait_screen_width;
+extern int trait_screen_height;
 extern int screen_padding;
 extern int screen_row_count;
 
 #define FIXED_SCALE 2
 #define FIXED_BPP 2
 #define FIXED_DEPTH (FIXED_BPP * 8)
-#define FIXED_WIDTH screen_width
-#define FIXED_HEIGHT screen_height
-#define FIXED_PITCH (screen_width * FIXED_BPP)
-#define FIXED_SIZE (FIXED_PITCH * screen_height)
+#define FIXED_WIDTH trait_screen_width
+#define FIXED_HEIGHT trait_screen_height
+#define FIXED_PITCH (trait_screen_width * FIXED_BPP)
+#define FIXED_SIZE (FIXED_PITCH * trait_screen_height)
 
 #define MAIN_ROW_COUNT (screen_row_count + (on_hdmi ? 2 : 0))
 #define PADDING (on_hdmi ? 40 : screen_padding)

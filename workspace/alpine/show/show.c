@@ -11,8 +11,8 @@
 
 static int initDisplay(SDL_Window **win, SDL_Renderer **ren) {
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) return -1;
-	*win = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screen_width, screen_height,
-							SDL_WINDOW_SHOWN);
+	*win = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, trait_screen_width,
+							trait_screen_height, SDL_WINDOW_SHOWN);
 	if (!*win) return -1;
 	*ren = SDL_CreateRenderer(*win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (!*ren) {
@@ -35,8 +35,8 @@ static void destroyDisplay(SDL_Window *win, SDL_Renderer *ren, SDL_Texture *tex)
 
 static void renderSplash(SDL_Renderer *ren, SDL_Texture *tex, int w, int h) {
 	SDL_Rect dst = {
-		.x = (screen_width - w) / 2,
-		.y = (screen_height - h) / 2,
+		.x = (trait_screen_width - w) / 2,
+		.y = (trait_screen_height - h) / 2,
 		.w = w,
 		.h = h,
 	};

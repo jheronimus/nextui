@@ -23,8 +23,8 @@
 char device_id[MINIME_TRAIT_NAME_MAX] = "";
 char device_model[MINIME_TRAIT_PATH_MAX] = "";
 
-int screen_width = 640;
-int screen_height = 480;
+int trait_screen_width = 640;
+int trait_screen_height = 480;
 int screen_rotation = 0;
 int screen_padding = 10;
 int screen_row_count = 6;
@@ -106,8 +106,8 @@ typedef struct {
 static const TraitField TRAIT_FIELDS[] = {
 	STR_BIND("device_id", device_id),
 	STR_BIND("device_model", device_model),
-	INT_BIND("screen_width", screen_width),
-	INT_BIND("screen_height", screen_height),
+	INT_BIND("screen_width", trait_screen_width),
+	INT_BIND("screen_height", trait_screen_height),
 	INT_BIND("screen_rotation", screen_rotation),
 	ASPECT_BIND("screen_aspect", screen_aspect),
 	INT_BIND("screen_refresh_rate", screen_refresh_rate),
@@ -247,8 +247,9 @@ static int validateRequiredKeys(void) {
 }
 
 static int validateDisplay(void) {
-	return (screen_width > 0 && screen_height > 0 && screen_rotation >= 0 && MINIME_traitAvailable(gpu_device) &&
-			MINIME_traitAvailable(screen_backlight_path) && screen_backlight_max > 0);
+	return (trait_screen_width > 0 && trait_screen_height > 0 && screen_rotation >= 0 &&
+			MINIME_traitAvailable(gpu_device) && MINIME_traitAvailable(screen_backlight_path) &&
+			screen_backlight_max > 0);
 }
 
 static int validateInputs(void) {
@@ -275,8 +276,8 @@ static void initTraitDefaults(void) {
 	axis_min = axis_center = axis_max = -1;
 	axis_hat_x = 16; // ABS_HAT0X
 	axis_hat_y = 17; // ABS_HAT0Y
-	screen_width = 640;
-	screen_height = 480;
+	trait_screen_width = 640;
+	trait_screen_height = 480;
 	screen_rotation = 0;
 	screen_padding = 0;
 	screen_row_count = 0;
@@ -324,8 +325,8 @@ static int parseTraitsFile(const char *path) {
 }
 
 static void deriveFallbacks(void) {
-	if (screen_padding <= 0) screen_padding = (screen_width >= 720) ? 40 : 10;
-	if (screen_row_count <= 0) screen_row_count = (screen_width >= 720) ? 8 : 6;
+	if (screen_padding <= 0) screen_padding = (trait_screen_width >= 720) ? 40 : 10;
+	if (screen_row_count <= 0) screen_row_count = (trait_screen_width >= 720) ? 8 : 6;
 }
 
 int MINIME_traitsInit(void) {
