@@ -7,10 +7,12 @@ url="https://github.com/jheronimus/nextui"
 arch="aarch64"
 license="MIT"
 options="!check"
+maintainer="NextUI Team"
 makedepends="linux-headers"
 source="
 	bootsplash.c
 	Makefile
+	stb_image.h
 "
 
 build() {
@@ -22,6 +24,7 @@ package() {
 }
 
 sha512sums="
-4a8ac86fb784d2af08ecff6d7dcf9c1754c35224b1c46d1b0fec4287cdd7ded5b9331aceff8e2a09445a713021300af3533e4f4306a6133a3f1332f606b8c970  bootsplash.c
+3b072e5439cfb16accee39081ac394c17b3ebc96759300baa51d4d754cfbc13d586b4e1e3d79ab8eb4e9efa24248abc19044e4fca32d984b65e11aedd19e5d76  bootsplash.c
 e221bc2dad33d759b87347d18e7491f712233a525b2bfcab71d647af407d5b09e00868d54c584da33cefc49450f22424471228781050370830120fd5bf89618d  Makefile
+3af21df0e71c553757ef3d8e3fb496f346212dc69e066b4646eb613a0d8120606e85e94db4cda63a1feb7f2d433f95b132e47e7c7b59d2698b48e8f22d5bda9d  stb_image.h
 "

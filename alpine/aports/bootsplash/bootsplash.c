@@ -1063,6 +1063,7 @@ int main(int argc, char **argv)
 	uint32_t total_h = word_h + gap_h + bar_h;
 
 	uint32_t start_x = (log_w > word_w) ? (log_w - word_w) / 2 : 0;
+	uint32_t start_y = (log_h > total_h) ? (log_h - total_h) / 2 : 0;
 	const char *bmp_file = find_custom_bmp();
 	uint32_t bmp_w = 0, bmp_h = 0, bmp_y = 0;
 	bool has_bmp = (bmp_file && load_and_draw_bmp(&surf, bmp_file, &bmp_w, &bmp_h, &bmp_y) == 0);
