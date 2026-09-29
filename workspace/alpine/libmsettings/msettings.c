@@ -191,7 +191,8 @@ typedef struct SettingsV11 {
 	int turbo_l2;
 	int turbo_r1;
 	int turbo_r2;
-	int unused[2];
+	int charging;
+	int battery;
 	int jack;
 	int audiosink;
 	int displaycal_enabled;
@@ -228,6 +229,8 @@ static Settings DefaultSettings = {
 	.turbo_l2 = 0,
 	.turbo_r1 = 0,
 	.turbo_r2 = 0,
+	.charging = 0,
+	.battery = 0,
 	.jack = 0,
 	.audiosink = AUDIO_SINK_DEFAULT,
 	.displaycal_enabled = DISPLAYCAL_DEFAULT_ENABLED,
@@ -423,6 +426,10 @@ int GetHDMI(void) {
 
 int GetMute(void) { return settings ? settings->mute : 0; }
 
+int GetBT(void) { return GetAudioSink() == AUDIO_SINK_BLUETOOTH; }
+int GetCharging(void) { return settings ? settings->charging : 0; }
+int GetBattery(void) { return settings ? settings->battery : 0; }
+
 int GetMutedBrightness(void) { return settings ? settings->toggled_brightness : 0; }
 int GetMutedColortemp(void) { return settings ? settings->toggled_colortemperature : 0; }
 int GetMutedContrast(void) { return settings ? settings->toggled_contrast : 0; }
@@ -545,6 +552,16 @@ void SetAudioSink(int value) {
 	if (!settings) return;
 	settings->audiosink = value;
 	SetVolume(GetVolume());
+}
+
+void SetBT(int value) { SetAudioSink(value ? AUDIO_SINK_BLUETOOTH : AUDIO_SINK_DEFAULT); }
+
+void SetCharging(int value) {
+	if (settings) settings->charging = value;
+}
+
+void SetBattery(int value) {
+	if (settings) settings->battery = value;
 }
 
 void SetHDMI(int value) { (void)value; }
