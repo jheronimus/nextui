@@ -38,11 +38,17 @@ $(PLATFORM):
 	fi
 
 	@echo "==> input"
-	cp -f $(P)/keymon/build/$(PLATFORM)/keymon.elf $(SYS)/bin/
+	@if [ -f $(P)/keymon/build/$(PLATFORM)/keymon.elf ]; then \
+		cp -f $(P)/keymon/build/$(PLATFORM)/keymon.elf $(SYS)/bin/; \
+	elif [ -f $(P)/keymon/keymon.elf ]; then \
+		cp -f $(P)/keymon/keymon.elf $(SYS)/bin/; \
+	fi
 
 	@echo "==> first-boot show (device.cfg generator)"
 	@if [ -f $(P)/show/build/$(PLATFORM)/show.elf ]; then \
 		cp -f $(P)/show/build/$(PLATFORM)/show.elf $(SYS)/bin/; \
+	elif [ -f $(P)/show/show.elf ]; then \
+		cp -f $(P)/show/show.elf $(SYS)/bin/; \
 	fi
 
 	@echo "==> tools and extras"
@@ -85,6 +91,7 @@ $(PLATFORM):
 	done
 
 	@echo "==> version"
+	@mkdir -p $(NEXTUI_ROOT)/releases
 	@printf '%s\n%s\n' \
 		"$(shell cd $(NEXTUI_ROOT) && make --no-print-directory name)" \
 		"$(shell cd $(NEXTUI_ROOT) && git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
