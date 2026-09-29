@@ -168,6 +168,7 @@ payload-components:
 	$(MAKE) -C $(WORKSPACE_DIR)/all/libgametimedb PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametimectl PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametime PLATFORM=$(PLATFORM)
+	$(MAKE) -C $(WORKSPACE_DIR)/all/bootlogo PLATFORM=$(PLATFORM)
 ifdef COMPILE_CORES
 	@echo "==> cores"
 	$(MAKE) -C $(PORT_DIR)/cores PLATFORM=$(PLATFORM)

@@ -155,3 +155,4 @@ libcrypto3
 # Both are additive: build the aports and re-add the line when you want them.
 fatresize
 mdnsd
+bootsplash

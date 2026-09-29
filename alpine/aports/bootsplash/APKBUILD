@@ -1,0 +1,27 @@
+# shellcheck shell=sh disable=SC2034,SC2154,SC3043
+pkgname=bootsplash
+pkgver=1.0.0
+pkgrel=0
+pkgdesc="Direct DRM/KMS early bootsplash daemon"
+url="https://github.com/jheronimus/nextui"
+arch="aarch64"
+license="MIT"
+options="!check"
+makedepends="linux-headers"
+source="
+	bootsplash.c
+	Makefile
+"
+
+build() {
+	make -C "$srcdir" CC="${CC:-gcc}" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+}
+
+package() {
+	install -Dm755 "$srcdir/bootsplash" "$pkgdir/usr/bin/bootsplash"
+}
+
+sha512sums="
+4a8ac86fb784d2af08ecff6d7dcf9c1754c35224b1c46d1b0fec4287cdd7ded5b9331aceff8e2a09445a713021300af3533e4f4306a6133a3f1332f606b8c970  bootsplash.c
+e221bc2dad33d759b87347d18e7491f712233a525b2bfcab71d647af407d5b09e00868d54c584da33cefc49450f22424471228781050370830120fd5bf89618d  Makefile
+"

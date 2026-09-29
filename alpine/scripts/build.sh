@@ -167,7 +167,7 @@ build_local_apks() {
 	# Local packages that go into the rootfs. Keep this list in sync with the
 	# "Local packages" section of alpine/packages.txt; check-boards.sh does not
 	# verify it, so if you add one there, add it here.
-	ALPINE_PKGS="fatresize mdnsd"
+	ALPINE_PKGS="fatresize mdnsd bootsplash"
 
 	for ALPINE_PKG in ${ALPINE_PKGS}; do
 		[ -d "${ALPINE_DIR}/aports/${ALPINE_PKG}" ] || die "missing aports/${ALPINE_PKG}"

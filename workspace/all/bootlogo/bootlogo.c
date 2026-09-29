@@ -34,24 +34,26 @@ static int count = 0;
 
 int loadImages()
 {
-    char* device = getenv("DEVICE");
-    // This needs to get a bit more flexible down the line, but for now we either expect the files
-    // in the pak root directory or in the "brick" subfolder.
+    // NEXTUI-ALPINE: check logos subfolder first, then fallback to device subfolder
     char basepath[MAX_PATH];
-    if(exactMatch("brick", device) || exactMatch("brickpro", device)) {
-        snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/brick/", TOOLS_PATH);
-    }
-    else {
-        snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/smartpro/", TOOLS_PATH);
+    snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/logos/", TOOLS_PATH);
+    if (access(basepath, R_OK) != 0) {
+        char* device = getenv("DEVICE");
+        if(exactMatch("brick", device) || exactMatch("brickpro", device)) {
+            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/brick/", TOOLS_PATH);
+        }
+        else {
+            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/smartpro/", TOOLS_PATH);
+        }
     }
 
-    // grab all bmp files in the directory and load them with IMG_Load, 
+    // grab all bmp and png files in the directory and load them with IMG_Load, 
     // keep them in an array of SDL_Surface pointers
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir(basepath)) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
-            if (strstr(ent->d_name, ".bmp") != NULL) {
+            if (strstr(ent->d_name, ".bmp") != NULL || strstr(ent->d_name, ".png") != NULL) {
                 char path[MAX_PATH];
                 snprintf(path, sizeof(path), "%s%s", basepath, ent->d_name);
                 SDL_Surface *bmp = IMG_Load(path);
@@ -132,19 +134,20 @@ int main(int argc, char *argv[])
             }
             else if (PAD_justPressed(BTN_A))
             {
-                // apply with system calls
-                // BOOT_PATH=/mnt/boot/
-                // mkdir -p $BOOT_PATH
-                // mount -t vfat /dev/mmcblk0p1 $BOOT_PATH
-                // cp $LOGO_PATH $BOOT_PATH
-                // sync
-                // umount $BOOT_PATH
-                // reboot
-                char* boot_path = "/mnt/boot/";
-                char* logo_path = image_paths[selected];
-                char cmd[256]; 
-                snprintf(cmd, sizeof(cmd), "mkdir -p %s && mount -t vfat /dev/mmcblk0p1 %s && cp \"%s\" %s/bootlogo.bmp && sync && umount %s && reboot", boot_path, boot_path, logo_path, boot_path, boot_path);
-                system(cmd);
+                // NEXTUI-ALPINE: write bootsplash directly to /mnt/sdcard/.minime/bootsplash.png on Alpine
+                if (exactMatch("alpine", PLATFORM)) {
+                    char* logo_path = image_paths[selected];
+                    char cmd[256];
+                    snprintf(cmd, sizeof(cmd), "cp \"%s\" /mnt/sdcard/.minime/bootsplash.png && sync", logo_path);
+                    system(cmd);
+                    quit = 1;
+                } else {
+                    char* boot_path = "/mnt/boot/";
+                    char* logo_path = image_paths[selected];
+                    char cmd[256]; 
+                    snprintf(cmd, sizeof(cmd), "mkdir -p %s && mount -t vfat /dev/mmcblk0p1 %s && cp \"%s\" %s/bootlogo.bmp && sync && umount %s && reboot", boot_path, boot_path, logo_path, boot_path, boot_path);
+                    system(cmd);
+                }
             }
             else if (PAD_justPressed(BTN_B))
             {
