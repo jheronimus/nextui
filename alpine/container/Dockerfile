@@ -69,6 +69,8 @@ RUN apk add --no-cache --no-progress \
 		erofs-utils \
 		squashfs-tools \
 		util-linux \
+		zip \
+		unzip \
 		# cross toolchain used by abuild for aarch64 targets
 		binutils \
 		gcc \
