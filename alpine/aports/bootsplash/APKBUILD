@@ -7,7 +7,6 @@ url="https://github.com/jheronimus/nextui"
 arch="aarch64"
 license="MIT"
 options="!check"
-maintainer="NextUI Team"
 makedepends="linux-headers"
 source="
 	bootsplash.c
