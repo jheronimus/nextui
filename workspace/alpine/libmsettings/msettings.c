@@ -450,9 +450,13 @@ int GetMuteTurboR2(void) { return settings ? settings->turbo_r2 : 0; }
 // Setters
 void SetBrightness(int value) {
 	if (!settings) return;
-	if (settings->mute && GetMutedBrightness() != SETTINGS_DEFAULT_MUTE_NO_CHANGE)
-		return SetRawBrightness(scaleBrightness(GetMutedBrightness()));
-	SetRawBrightness(scaleBrightness(value));
+	int target =
+		(settings->mute && GetMutedBrightness() != SETTINGS_DEFAULT_MUTE_NO_CHANGE) ? GetMutedBrightness() : value;
+	if (screen_backlight_max <= 10) {
+		SetRawBrightness(target);
+	} else {
+		SetRawBrightness(scaleBrightness(target));
+	}
 	settings->brightness = value;
 	SaveSettings();
 }
@@ -823,7 +827,17 @@ int scaleExposure(int value) {
 // Hardware setters
 void SetRawBrightness(int val) {
 	int max = screen_backlight_max > 0 ? screen_backlight_max : 255;
-	int raw = (val * max) / 255;
+	int raw;
+	if (max <= 10) {
+		if (val > 10) {
+			raw = (val * max + 127) / 255;
+			if (val > 0 && raw == 0) raw = 1;
+		} else {
+			raw = val;
+		}
+	} else {
+		raw = (val * max) / 255;
+	}
 	const char *path = screen_backlight_path[0] ? screen_backlight_path : "/sys/class/backlight/backlight/brightness";
 	FILE *f = fopen(path, "w");
 	if (f) {
