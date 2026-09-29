@@ -112,11 +112,12 @@ RUN addgroup -g ${BUILDER_GID} builder 2>/dev/null || true \
 # abuild signing key. Fixed repo key to ensure cached packages across container
 # builds and CI runs maintain consistent and trusted signatures.
 COPY keys/nextui-alpine.rsa /home/builder/.abuild/nextui-alpine.rsa
+COPY keys/nextui-alpine.rsa.pub /home/builder/.abuild/nextui-alpine.rsa.pub
 COPY keys/nextui-alpine.rsa.pub /etc/apk/keys/nextui-alpine.rsa.pub
 RUN chown -R builder:builder /home/builder/.abuild \
 	&& chmod 700 /home/builder/.abuild \
 	&& chmod 600 /home/builder/.abuild/nextui-alpine.rsa \
-	&& chmod 644 /etc/apk/keys/nextui-alpine.rsa.pub \
+	&& chmod 644 /home/builder/.abuild/nextui-alpine.rsa.pub /etc/apk/keys/nextui-alpine.rsa.pub \
 	&& printf '%s\n' \
 		'PACKAGER_PRIVKEY="/home/builder/.abuild/nextui-alpine.rsa"' \
 		'REPODEST="/alpine-output/packages/main"' \
