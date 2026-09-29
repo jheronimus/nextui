@@ -153,8 +153,8 @@ $(PREFIX_LOCAL)/include/msettings.h:
 	cd ../../$(PLATFORM)/libmsettings && make
 
 ### libsrm stuff
-# NEXTUI-ALPINE: include rstrtod, trans_stream_deflate, and encoding_deflate for non-LTO static linking
-OBJECTS = streams/rzip_stream.o streams/file_stream.o vfs/vfs_implementation.o file/file_path.o file/file_path_io.o compat/compat_strl.o time/rtime.o string/stdstring.o string/rstrtod.o encodings/encoding_utf.o encodings/encoding_deflate.o streams/trans_stream.o streams/trans_stream_deflate.o streams/trans_stream_pipe.o streams/trans_stream_zlib.o
+# NEXTUI-ALPINE: include rstrtod, trans_stream_deflate, encoding_deflate, encoding_crc32, features_cpu for non-LTO static linking
+OBJECTS = streams/rzip_stream.o streams/file_stream.o vfs/vfs_implementation.o file/file_path.o file/file_path_io.o compat/compat_strl.o time/rtime.o string/stdstring.o string/rstrtod.o encodings/encoding_utf.o encodings/encoding_deflate.o encodings/encoding_crc32.o features/features_cpu.o streams/trans_stream.o streams/trans_stream_deflate.o streams/trans_stream_pipe.o streams/trans_stream_zlib.o
 
 $(OBJECTS) : 
 	cd libretro-common && $(CC) $(CFLAGS) -DHAVE_ZLIB -c -o $@ $(subst .o,.c,$@) -I include/
