@@ -105,6 +105,8 @@ else ifneq (,$(filter $(PLATFORM),tg5040 tg5050 my355 alpine))
 # Platforms with RA support
 all: clean libretro-common libsrm.a rcheevos libchdr $(PREFIX_LOCAL)/include/msettings.h
 	mkdir -p build/$(PLATFORM)
+# NEXTUI-ALPINE: guard toolchain library copy on alpine as libraries reside in rootfs/makefile.copy
+ifneq ($(PLATFORM),alpine)
 	cp -L $(PREFIX)/lib/libsamplerate.so.* build/$(PLATFORM)
 	cp -L $(PREFIX)/lib/libcrypto.so.* build/$(PLATFORM)
 	chmod a+r build/$(PLATFORM)/libcrypto.so.*
@@ -120,6 +122,7 @@ endif
 	cp -L $(PREFIX)/lib/libzstd.so.1 build/$(PLATFORM)
 	cp -L $(PREFIX)/lib/liblz4.so.1 build/$(PLATFORM)
 	cp -L libchdr/build/$(PLATFORM)/libchdr.so.0 build/$(PLATFORM)
+endif
 	$(CC) $(SOURCE) -o $(PRODUCT) $(CFLAGS) $(LDFLAGS)
 endif
 
