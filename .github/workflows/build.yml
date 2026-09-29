@@ -139,8 +139,8 @@ jobs:
         with:
           name: nextui-alpine-${{ matrix.board }}
           path: |
-            alpine/out/${{ matrix.board }}/*.img.zst
-            alpine/out/${{ matrix.board }}/*.tar.zst
+            alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.img.zst
+            alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.tar.zst
           if-no-files-found: error
           retention-days: 14
 
@@ -155,7 +155,7 @@ jobs:
               --title "Latest images and update packages" \
               --notes "Rolling release for testing on device" || true
           fi
-          for f in alpine/out/${{ matrix.board }}/*.img.zst alpine/out/${{ matrix.board }}/*.tar.zst; do
+          for f in "alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.img.zst" "alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.tar.zst"; do
             [ -f "$f" ] || continue
             for attempt in 1 2 3 4 5; do
               if gh release upload testing "$f" --clobber; then
