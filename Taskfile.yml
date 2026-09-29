@@ -184,7 +184,8 @@ tasks:
     cmds:
       - |
         set -eu
-        release=$({{.MAKE}} name | tail -1)
+        release=$(find releases/ -name '*-base.zip' -type f 2>/dev/null | sort -V | tail -1 | sed 's|^releases/||;s|-base\.zip$||' || true)
+        [ -z "$release" ] && release=$({{.MAKE}} name | tail -1)
         echo "board: {{.BOARD}}  release: $release"
         NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD={{.BOARD}}
 
@@ -196,7 +197,8 @@ tasks:
         for b in {{.BOARDS}}; do
           echo "=== $b ==="
           {{.MAKE}} -C alpine components BOARD=$b
-          release=$({{.MAKE}} name | tail -1)
+          release=$(find releases/ -name '*-base.zip' -type f 2>/dev/null | sort -V | tail -1 | sed 's|^releases/||;s|-base\.zip$||' || true)
+          [ -z "$release" ] && release=$({{.MAKE}} name | tail -1)
           NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD=$b
         done
 
@@ -253,7 +255,8 @@ tasks:
           {{.MAKE}} -C alpine payload
 
           echo "==> [4/4] image: packaging ($b)"
-          release=$({{.MAKE}} name | tail -1)
+          release=$(find releases/ -name '*-base.zip' -type f 2>/dev/null | sort -V | tail -1 | sed 's|^releases/||;s|-base\.zip$||' || true)
+          [ -z "$release" ] && release=$({{.MAKE}} name | tail -1)
           NEXTUI_RELEASE="$release" {{.MAKE}} -C alpine image BOARD="$b"
         done
 

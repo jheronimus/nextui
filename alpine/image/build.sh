@@ -149,12 +149,20 @@ fi
 # --- 2. Stage the NextUI payload --------------------------------------------
 
 base_zip="${PAYLOAD_DIR}/${NEXTUI_RELEASE}-base.zip"
-extras_zip="${PAYLOAD_DIR}/${NEXTUI_RELEASE}-extras.zip"
 if [ ! -f "$base_zip" ]; then
-	echo "ERROR: NextUI base payload not found: $base_zip" >&2
-	echo "       Build it first:  task payload" >&2
-	exit 1
+	latest_base="$(find "${PAYLOAD_DIR}" -name '*-base.zip' -type f 2>/dev/null | sort -V | tail -1 || true)"
+	if [ -n "$latest_base" ] && [ -f "$latest_base" ]; then
+		base_zip="$latest_base"
+		base_name="$(basename "$base_zip")"
+		NEXTUI_RELEASE="${base_name%-base.zip}"
+	else
+		echo "ERROR: NextUI base payload not found: $base_zip" >&2
+		echo "       Build it first:  task payload" >&2
+		exit 1
+	fi
 fi
+extras_zip="${PAYLOAD_DIR}/${NEXTUI_RELEASE}-extras.zip"
+
 log_stage() { printf '[image] %s\n' "$*" >&2; }
 log_stage "unpacking ${base_zip}"
 unzip -q -o "$base_zip" -d "$STAGE_DIR"
