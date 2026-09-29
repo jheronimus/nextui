@@ -65,7 +65,6 @@ dropbear
 openresolv
 
 # --- Wi-Fi + regulatory ----------------------------------------------------
-iwd
 wpa_supplicant
 wireless-regdb
 
@@ -81,6 +80,7 @@ alsa-utils
 alsa-plugins
 libsamplerate
 tinyalsa
+tinyalsa-libs
 
 # --- GLES / DRM / GBM / KMS / Vulkan (Mesa Panfrost & PanVK) --------------
 mesa
@@ -129,6 +129,8 @@ libstdc++
 libzip
 # libcrypto.so.3 for RetroAchievements.
 libcrypto3
+# SQLite runtime for batmondb and gametimedb
+sqlite-libs
 # NOTE: libbz2, liblzma, libzstd, liblz4 and libsamplerate are already
 # provided above by bzip2, xz, zstd, lz4 and alsa-plugins respectively.
 # Intentionally NOT apk packages -- NextUI's makefile builds these from source
