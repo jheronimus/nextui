@@ -13,6 +13,7 @@ wpa_sock_dir="/var/run/wpa_supplicant"
 wpa_conf_dir="/mnt/sdcard/.minime/config/wifi"
 wpa_conf_file="${wpa_conf_dir}/wpa_supplicant.conf"
 wifi_config_file="/mnt/sdcard/.minime/config/wifi.cfg"
+[ -f "${wifi_config_file}" ] || [ ! -f /mnt/sdcard/wifi.cfg ] || wifi_config_file="/mnt/sdcard/wifi.cfg"
 wpa_pidfile="/run/wpa_supplicant.pid"
 udhcpc_pidfile="/run/udhcpc.${wifi_interface}.pid"
 diagnostic_logfile="/tmp/wifi.diagnostics"
@@ -130,9 +131,14 @@ start() {
 	chmod 755 "${wpa_sock_dir}"
 	ensure_wpa_conf
 
+	wpa_bin="$(command -v wpa_supplicant 2>/dev/null || echo /sbin/wpa_supplicant)"
+	if [ ! -x "${wpa_bin}" ]; then
+		wpa_bin="/usr/sbin/wpa_supplicant"
+	fi
+
 	# Start wpa_supplicant daemon
 	if ! start-stop-daemon -S -q -b -m -p "${wpa_pidfile}" \
-		-x /usr/sbin/wpa_supplicant -- \
+		-x "${wpa_bin}" -- \
 		-i "${wifi_interface}" \
 		-c "${wpa_conf_file}" \
 		-C "${wpa_sock_dir}" 2>>"${diagnostic_logfile}"; then
