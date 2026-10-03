@@ -344,7 +344,7 @@ if [ -f "$SHIM_PLATFORM/traits.c" ]; then
 		ok=0
 		for d in $sh_dirs; do
 			case "$cpath" in
-			"$d" | "$d"/*)
+			"$d" | "$d"/* | usr/share/zoneinfo*)
 				ok=1
 				break
 				;;

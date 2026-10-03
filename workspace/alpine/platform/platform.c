@@ -498,3 +498,145 @@ static inline void connection_reset(struct WIFI_connection *connection_info) {
 
 // We use the generic bluetooth implementation here
 #include "generic_bt.c"
+
+//////////////////////////////////////
+// Timezone & NTP
+
+#define MAX_LINE_LENGTH 200
+#define ZONE_TAB_PATH "/usr/share/zoneinfo/zone.tab"
+#define TZ_CONFIG_FILE "/mnt/sdcard/.minime/config/timezone"
+#define NTP_CONFIG_FILE "/mnt/sdcard/.minime/config/ntp"
+
+static char cached_timezones[MAX_TIMEZONES][MAX_TZ_LENGTH];
+static int cached_tz_count = -1;
+
+static int compare_timezones(const void *a, const void *b) { return strcmp((const char *)a, (const char *)b); }
+
+static void add_timezone(const char *name) {
+	if (!name || name[0] == '\0' || cached_tz_count >= MAX_TIMEZONES) return;
+	for (int i = 0; i < cached_tz_count; i++) {
+		if (strcmp(cached_timezones[i], name) == 0) return;
+	}
+	strncpy(cached_timezones[cached_tz_count], name, MAX_TZ_LENGTH - 1);
+	cached_timezones[cached_tz_count][MAX_TZ_LENGTH - 1] = '\0';
+	cached_tz_count++;
+}
+
+static char *extract_tz_token(char *line) {
+	if (line[0] == '#' || strlen(line) < 3) return NULL;
+	strtok(line, "\t");
+	strtok(NULL, "\t");
+	char *token = strtok(NULL, "\t\r\n");
+	if (!token) return NULL;
+	token[strcspn(token, " \t\r\n")] = '\0';
+	return token;
+}
+
+static void parse_zone_tab(void) {
+	FILE *file = fopen(ZONE_TAB_PATH, "r");
+	if (!file) return;
+
+	char line[MAX_LINE_LENGTH];
+	while (fgets(line, sizeof(line), file)) {
+		char *tz = extract_tz_token(line);
+		if (tz && tz[0] != '\0') add_timezone(tz);
+	}
+	fclose(file);
+}
+
+void PLAT_initTimezones(void) {
+	if (cached_tz_count != -1) return;
+
+	cached_tz_count = 0;
+	parse_zone_tab();
+
+	if (cached_tz_count == 0) {
+		add_timezone("UTC");
+	} else {
+		qsort(cached_timezones, cached_tz_count, MAX_TZ_LENGTH, compare_timezones);
+	}
+}
+
+void PLAT_getTimezones(char timezones[MAX_TIMEZONES][MAX_TZ_LENGTH], int *tz_count) {
+	if (cached_tz_count == -1) {
+		PLAT_initTimezones();
+	}
+	if (tz_count) {
+		*tz_count = cached_tz_count;
+	}
+	if (cached_tz_count > 0 && timezones) {
+		memcpy(timezones, cached_timezones, sizeof(cached_timezones));
+	}
+}
+
+static char current_tz[MAX_TZ_LENGTH] = {0};
+
+char *PLAT_getCurrentTimezone(void) {
+	if (current_tz[0] != '\0') return current_tz;
+
+	FILE *f = fopen(TZ_CONFIG_FILE, "r");
+	if (f) {
+		if (fgets(current_tz, sizeof(current_tz), f)) {
+			current_tz[strcspn(current_tz, "\r\n")] = '\0';
+		}
+		fclose(f);
+	}
+
+	if (current_tz[0] == '\0') {
+		const char *env_tz = getenv("TZ");
+		if (env_tz && env_tz[0] != '\0') {
+			strncpy(current_tz, env_tz, sizeof(current_tz) - 1);
+			current_tz[sizeof(current_tz) - 1] = '\0';
+		}
+	}
+
+	if (current_tz[0] == '\0') {
+		strncpy(current_tz, "UTC", sizeof(current_tz) - 1);
+		current_tz[sizeof(current_tz) - 1] = '\0';
+	}
+
+	return current_tz;
+}
+
+void PLAT_setCurrentTimezone(const char *tz) {
+	if (!tz || tz[0] == '\0') return;
+
+	strncpy(current_tz, tz, sizeof(current_tz) - 1);
+	current_tz[sizeof(current_tz) - 1] = '\0';
+
+	setenv("TZ", tz, 1);
+	tzset();
+
+	FILE *f = fopen(TZ_CONFIG_FILE, "w");
+	if (f) {
+		fprintf(f, "%s\n", tz);
+		fclose(f);
+		sync();
+	}
+}
+
+bool PLAT_getNetworkTimeSync(void) {
+	if (access(NTP_CONFIG_FILE, F_OK) != 0) return true;
+
+	FILE *f = fopen(NTP_CONFIG_FILE, "r");
+	if (!f) return true;
+
+	int val = 1;
+	if (fscanf(f, "%d", &val) != 1) val = 1;
+	fclose(f);
+	return val != 0;
+}
+
+void PLAT_setNetworkTimeSync(bool on) {
+	FILE *f = fopen(NTP_CONFIG_FILE, "w");
+	if (f) {
+		fprintf(f, "%d\n", on ? 1 : 0);
+		fclose(f);
+		sync();
+	}
+	if (on) {
+		system("killall ntpd 2>/dev/null; ntpd -p pool.ntp.org 2>/dev/null &");
+	} else {
+		system("killall ntpd 2>/dev/null");
+	}
+}
