@@ -13,7 +13,7 @@ index 62cb321..e50aa6e 100644
 +   SHARED := -shared -Wl,--no-undefined
 +   LDFLAGS += -shared -Wl,--version-script=$(CORE_DIR)/libretro/link.T
 +   HAVE_NEON = 1
-+   CFLAGS += -DARM -DALIGN_DWORD -falign-functions=16 -pipe -fstack-protector
++   CFLAGS += -DARM -DALIGN_DWORD -falign-functions=16 -pipe -fstack-protector -D_GNU_SOURCE -Wno-implicit-function-declaration
 +   CFLAGS += -mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a
 +
  # Wincross64
