@@ -240,6 +240,12 @@ fi
 touch "${STAGE_DIR}/.minime/config/first_boot_expand"
 echo 1 >"${STAGE_DIR}/.minime/config/bluetooth/enabled"
 
+# Default bootsplash from Bootlogo.pak presets
+default_splash="${NEXTUI_ROOT}/skeleton/EXTRAS/Tools/alpine/Bootlogo.pak/640x480/bootlogo.png"
+if [ -f "$default_splash" ]; then
+	cp -f "$default_splash" "${STAGE_DIR}/.minime/bootsplash.png"
+fi
+
 # --- 5. Bootloader blobs -----------------------------------------------------
 
 # The bootloader is not built here. The blobs are vendored under

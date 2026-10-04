@@ -26,50 +26,75 @@ static void sigHandler(int sig)
 }
 
 static SDL_Surface *screen;
+static char basepath[MAX_PATH];
 
 SDL_Surface** images;
 char **image_paths;
 static int selected = 0;
 static int count = 0;
 
-int loadImages()
+static SDL_Surface *rotatePreviewCW(SDL_Surface *src)
 {
-    // NEXTUI-ALPINE: check logos subfolder first, then fallback to device subfolder
-    char basepath[MAX_PATH];
-    snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/logos/", TOOLS_PATH);
-    if (access(basepath, R_OK) != 0) {
-        char* device = getenv("DEVICE");
-        if(exactMatch("brick", device) || exactMatch("brickpro", device)) {
-            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/brick/", TOOLS_PATH);
+    if (!src) return NULL;
+    SDL_Surface *dst = SDL_CreateRGBSurfaceWithFormat(0, src->h, src->w, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!dst) return src;
+    SDL_Surface *conv = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_ARGB8888, 0);
+    if (!conv) {
+        SDL_FreeSurface(dst);
+        return src;
+    }
+    uint32_t *src_pixels = (uint32_t *)conv->pixels;
+    uint32_t *dst_pixels = (uint32_t *)dst->pixels;
+    int src_stride = conv->pitch / 4;
+    int dst_stride = dst->pitch / 4;
+    for (int y = 0; y < conv->h; y++) {
+        for (int x = 0; x < conv->w; x++) {
+            dst_pixels[x * dst_stride + (conv->h - 1 - y)] = src_pixels[y * src_stride + x];
         }
-        else {
+    }
+    SDL_FreeSurface(conv);
+    SDL_FreeSurface(src);
+    return dst;
+}
+
+int loadImages(void)
+{
+    // NEXTUI-ALPINE: check resolution folder first (e.g. 640x480), then fallback to logos
+    snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/%ix%i/", TOOLS_PATH, screen->w, screen->h);
+    if (access(basepath, R_OK) != 0) {
+        snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/logos/", TOOLS_PATH);
+    }
+    if (access(basepath, R_OK) != 0) {
+        char *device = getenv("DEVICE");
+        if (exactMatch("brick", device) || exactMatch("brickpro", device)) {
+            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/brick/", TOOLS_PATH);
+        } else {
             snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/smartpro/", TOOLS_PATH);
         }
     }
 
-    // grab all bmp and png files in the directory and load them with IMG_Load, 
-    // keep them in an array of SDL_Surface pointers
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir(basepath)) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
-            if (strstr(ent->d_name, ".bmp") != NULL || strstr(ent->d_name, ".png") != NULL) {
+            if (strstr(ent->d_name, ".png") != NULL) {
                 char path[MAX_PATH];
                 snprintf(path, sizeof(path), "%s%s", basepath, ent->d_name);
-                SDL_Surface *bmp = IMG_Load(path);
-                if (bmp) {
+                SDL_Surface *img = IMG_Load(path);
+                if (img) {
+                    if (PLAT_getScreenRotation() != 0)
+                        img = rotatePreviewCW(img);
                     count++;
-                    images = realloc(images, sizeof(SDL_Surface*) * count);
-                    images[count-1] = bmp;
-                    image_paths = realloc(image_paths, sizeof(char*) * count);
-                    image_paths[count-1] = strdup(path);
+                    images = realloc(images, sizeof(SDL_Surface *) * count);
+                    images[count - 1] = img;
+                    image_paths = realloc(image_paths, sizeof(char *) * count);
+                    image_paths[count - 1] = strdup(path);
                 }
             }
         }
         closedir(dir);
     } else {
-        // could not open directory
-        LOG_error("could not open directory");
+        LOG_error("could not open directory: %s\n", basepath);
         if (CFG_getHaptics()) {
             VIB_triplePulse(5, 150, 200);
         }
@@ -78,10 +103,9 @@ int loadImages()
     return count;
 }
 
-void unloadImages()
+void unloadImages(void)
 {
-    for (int i = 0; i < count; i++)
-    {
+    for (int i = 0; i < count; i++) {
         SDL_FreeSurface(images[i]);
     }
     free(images);
@@ -103,54 +127,41 @@ int main(int argc, char *argv[])
     loadImages();
 
     int dirty = 1;
-    int show_setting = 0;
     int was_online = PWR_isOnline();
     int had_bt = PLAT_btIsConnected();
-    while (!quit)
-    {
+    while (!quit) {
         GFX_startFrame();
         PAD_poll();
 
-        // This might be too harsh, but ignore all combos with MENU (most likely a shortcut for someone else)
-        if (PAD_justPressed(BTN_MENU))
-        {
-            // ?
-        }
-        else
-        {
-            if (PAD_justRepeated(BTN_LEFT))
-            {
+        if (PAD_justPressed(BTN_MENU)) {
+            // ignore menu combos
+        } else {
+            if (PAD_justRepeated(BTN_LEFT) && count > 0) {
                 selected -= 1;
-                if (selected<0)
+                if (selected < 0)
                     selected = count - 1;
                 dirty = 1;
-            }
-            else if (PAD_justRepeated(BTN_RIGHT))
-            {
+            } else if (PAD_justRepeated(BTN_RIGHT) && count > 0) {
                 selected += 1;
-                if (selected>=count)
+                if (selected >= count)
                     selected = 0;
                 dirty = 1;
-            }
-            else if (PAD_justPressed(BTN_A))
-            {
+            } else if (PAD_justPressed(BTN_A) && count > 0) {
                 // NEXTUI-ALPINE: write bootsplash directly to /mnt/sdcard/.minime/bootsplash.png on Alpine
                 if (exactMatch("alpine", PLATFORM)) {
-                    char* logo_path = image_paths[selected];
-                    char cmd[256];
+                    char *logo_path = image_paths[selected];
+                    char cmd[512];
                     snprintf(cmd, sizeof(cmd), "cp \"%s\" /mnt/sdcard/.minime/bootsplash.png && sync", logo_path);
                     system(cmd);
                     quit = 1;
                 } else {
-                    char* boot_path = "/mnt/boot/";
-                    char* logo_path = image_paths[selected];
-                    char cmd[256]; 
+                    char *boot_path = "/mnt/boot/";
+                    char *logo_path = image_paths[selected];
+                    char cmd[512];
                     snprintf(cmd, sizeof(cmd), "mkdir -p %s && mount -t vfat /dev/mmcblk0p1 %s && cp \"%s\" %s/bootlogo.bmp && sync && umount %s && reboot", boot_path, boot_path, logo_path, boot_path, boot_path);
                     system(cmd);
                 }
-            }
-            else if (PAD_justPressed(BTN_B))
-            {
+            } else if (PAD_justPressed(BTN_B)) {
                 quit = 1;
             }
         }
@@ -167,19 +178,38 @@ int main(int argc, char *argv[])
             dirty = 1;
         had_bt = has_bt;
 
-        if (dirty)
-        {
+        if (dirty) {
             GFX_clear(screen);
 
-            if(count > 0) {
-                // render the selected image, centered on screen
+            if (count > 0) {
                 SDL_Surface *image = images[selected];
-                SDL_Rect image_rect = {
-                    screen->w /2 - image->w /2,
-                    screen->h /2 - image->h / 2,
-                    image->w,
-                    image->h};
-                SDL_BlitSurface(image, NULL, screen, &image_rect);
+                if (image->w > screen->w || image->h > screen->h) {
+                    int fit_w = screen->w;
+                    int fit_h = image->h * screen->w / image->w;
+                    if (fit_h > screen->h) {
+                        fit_h = screen->h;
+                        fit_w = image->w * screen->h / image->h;
+                    }
+                    SDL_Rect image_rect = {
+                        screen->w / 2 - fit_w / 2,
+                        screen->h / 2 - fit_h / 2,
+                        fit_w,
+                        fit_h
+                    };
+                    SDL_BlitScaled(image, NULL, screen, &image_rect);
+                } else {
+                    SDL_Rect image_rect = {
+                        screen->w / 2 - image->w / 2,
+                        screen->h / 2 - image->h / 2,
+                        image->w,
+                        image->h
+                    };
+                    SDL_BlitSurface(image, NULL, screen, &image_rect);
+                }
+            } else {
+                char msg[MAX_PATH + 32];
+                snprintf(msg, sizeof(msg), "No presets found in\n%s", basepath);
+                GFX_blitMessage(font.small, msg, screen, NULL);
             }
 
             GFX_blitButtonGroup((char *[]){"L/R", "SCROLL", NULL}, 0, screen, 0);
@@ -187,9 +217,9 @@ int main(int argc, char *argv[])
 
             GFX_flip(screen);
             dirty = 0;
-        }
-        else
+        } else {
             GFX_sync();
+        }
     }
 
     unloadImages();

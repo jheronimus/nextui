@@ -16,13 +16,8 @@ for max_bl in /sys/class/backlight/*/max_brightness; do
 done
 
 BOOTSPLASH_PID=""
-if [ -x /usr/bin/bootsplash ]; then
-	/usr/bin/bootsplash --persist &
-	BOOTSPLASH_PID=$!
-fi
-
 CARD_DEV=""
-BOOT_LOG_DIR="/mnt/card"
+BOOT_LOG_DIR="/mnt/sdcard"
 
 log_console() {
 	echo "$*"
@@ -42,12 +37,12 @@ run_fat_fsck() {
 }
 
 finish_card_mount() {
-	if ! mount -t vfat "$CARD_DEV" /mnt/card 2>/dev/null; then
+	if ! mount -t vfat "$CARD_DEV" /mnt/sdcard 2>/dev/null; then
 		log_console "ERROR: failed to mount repaired FAT partition $CARD_DEV"
 		exec sh
 	fi
-	[ -f /mnt/card/.minime/system ] || {
-		umount /mnt/card 2>/dev/null || true
+	[ -f /mnt/sdcard/.minime/system ] || {
+		umount /mnt/sdcard 2>/dev/null || true
 		return 1
 	}
 
@@ -59,12 +54,18 @@ finish_card_mount() {
 		log_card "[INITRAMFS] WARNING: FAT fsck exited with code $FSCK_RC"
 		;;
 	esac
-	rm -f /mnt/card/FSCK*.REC /mnt/card/fsck*.rec 2>/dev/null || true
+	rm -f /mnt/sdcard/FSCK*.REC /mnt/sdcard/fsck*.rec 2>/dev/null || true
 	log_card "[INITRAMFS] Mounted MINIME FAT partition on $CARD_DEV"
+
+	if [ -z "$BOOTSPLASH_PID" ] && [ -x /usr/bin/bootsplash ]; then
+		/usr/bin/bootsplash --persist &
+		BOOTSPLASH_PID=$!
+	fi
+
 	return 0
 }
 
-mkdir -p /mnt/card
+mkdir -p /mnt/sdcard
 
 # Wait for Linux to enumerate SD/eMMC devices and mount the partition.
 log_console "Waiting for block devices..."
@@ -83,11 +84,11 @@ for _i in 1 2 3 4 5 6 7 8 9 10; do
 
 		# BusyBox builds without usable blkid support fall back to the original
 		# marker-based probe, then fsck the identified partition before remounting.
-		if mount -t vfat "$dev" /mnt/card 2>/dev/null; then
-			if [ -f /mnt/card/.minime/system ]; then
+		if mount -t vfat "$dev" /mnt/sdcard 2>/dev/null; then
+			if [ -f /mnt/sdcard/.minime/system ]; then
 				CARD_DEV="$dev"
 				log_card "[INITRAMFS] Found MINIME FAT partition on $CARD_DEV; checking filesystem..."
-				umount /mnt/card 2>/dev/null || {
+				umount /mnt/sdcard 2>/dev/null || {
 					log_card "ERROR: failed to unmount $CARD_DEV before fsck"
 					exec sh
 				}
@@ -96,7 +97,7 @@ for _i in 1 2 3 4 5 6 7 8 9 10; do
 				CARD_DEV=""
 				continue
 			fi
-			umount /mnt/card 2>/dev/null || true
+			umount /mnt/sdcard 2>/dev/null || true
 		fi
 	done
 	[ -n "$CARD_DEV" ] && break
@@ -114,7 +115,7 @@ log_card "[INITRAMFS] Initialized persistent logging on $CARD_DEV"
 # The default U-Boot at SD card offset 8K is built for LPDDR4 (DCDC3=1100mV).
 # If this device has LPDDR3 memory (DCDC3=1200mV), swap in the DDR3 U-Boot
 # binary stored on the FAT partition and reboot so it takes effect.
-if [ -f /mnt/card/.minime/u-boot-ddr3.bin ] && [ ! -f /mnt/card/.minime/.ddr3-swapped ]; then
+if [ -f /mnt/sdcard/.minime/u-boot-ddr3.bin ] && [ ! -f /mnt/sdcard/.minime/.ddr3-swapped ]; then
 	dram_uv=""
 	for r in /sys/class/regulator/regulator.*/; do
 		if [ "$(cat "$r/name" 2>/dev/null)" = "vdd-dram" ]; then
@@ -125,11 +126,11 @@ if [ -f /mnt/card/.minime/u-boot-ddr3.bin ] && [ ! -f /mnt/card/.minime/.ddr3-sw
 	if [ "$dram_uv" = "1200000" ]; then
 		log_card "[INITRAMFS] LPDDR3 detected (DCDC3=${dram_uv}uV), swapping U-Boot binary..."
 		DISK_DEV="${CARD_DEV%p1}"
-		if dd if=/mnt/card/.minime/u-boot-ddr3.bin of="$DISK_DEV" bs=1k seek=8 2>/dev/null; then
-			touch /mnt/card/.minime/.ddr3-swapped
+		if dd if=/mnt/sdcard/.minime/u-boot-ddr3.bin of="$DISK_DEV" bs=1k seek=8 2>/dev/null; then
+			touch /mnt/sdcard/.minime/.ddr3-swapped
 			sync
 			log_card "[INITRAMFS] DDR3 U-Boot written to ${DISK_DEV}, rebooting..."
-			umount /mnt/card 2>/dev/null || true
+			umount /mnt/sdcard 2>/dev/null || true
 			reboot -f
 		else
 			log_card "[INITRAMFS] WARNING: failed to write DDR3 U-Boot, continuing with DDR4"
@@ -138,16 +139,16 @@ if [ -f /mnt/card/.minime/u-boot-ddr3.bin ] && [ ! -f /mnt/card/.minime/.ddr3-sw
 fi
 
 # First-boot hardware probe.
-if [ -f /mnt/card/.minime/config/first_boot_probe ]; then
+if [ -f /mnt/sdcard/.minime/config/first_boot_probe ]; then
 	log_card "[INITRAMFS] Running first-boot hardware probe..."
-	mount -o remount,rw /mnt/card
+	mount -o remount,rw /mnt/sdcard
 
 	if [ -f /sbin/first-boot-probe.sh ]; then
 		sh /sbin/first-boot-probe.sh
 	fi
 
-	rm -f /mnt/card/.minime/config/first_boot_probe
-	umount /mnt/card
+	rm -f /mnt/sdcard/.minime/config/first_boot_probe
+	umount /mnt/sdcard
 	reboot -f
 fi
 
@@ -156,7 +157,7 @@ fi
 # first boot we stage the seeded FAT contents into RAM, wipe the partition with
 # mkfs.vfat at its full resized size, and restore the contents. This mirrors
 # the approach used by EmuELEC, dArkOS, and similar single-FAT32 firmware.
-if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
+if [ -f /mnt/sdcard/.minime/config/first_boot_expand ]; then
 	log_card "[INITRAMFS] Expanding SD card on $CARD_DEV..."
 	DISK_DEV="${CARD_DEV%p1}"
 	PART_NUM="${CARD_DEV##*p}"
@@ -174,7 +175,7 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 	fi
 	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 	log_card "[INITRAMFS] Staging FAT contents into $STAGE..."
-	if ! CP_OUT="$(cp -a /mnt/card/. "$STAGE"/ 2>&1)"; then
+	if ! CP_OUT="$(cp -a /mnt/sdcard/. "$STAGE"/ 2>&1)"; then
 		log_card "ERROR: failed to stage FAT contents: ${CP_OUT}"
 		exec sh
 	fi
@@ -182,7 +183,7 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 
 	# Release the vfat mount before re-reading the partition table so partprobe
 	# re-reads the grown partition cleanly instead of invalidating the mount.
-	umount /mnt/card 2>/dev/null || true
+	umount /mnt/sdcard 2>/dev/null || true
 	# Point logging at the staged copy (which is restored onto the card below)
 	# so boot.log continuity is kept across the unmounted window.
 	BOOT_LOG_DIR="$STAGE"
@@ -225,43 +226,40 @@ if [ -f /mnt/card/.minime/config/first_boot_expand ]; then
 		exec sh
 	fi
 
-	mount -t vfat "$CARD_DEV" /mnt/card 2>/dev/null || {
+	mount -t vfat "$CARD_DEV" /mnt/sdcard 2>/dev/null || {
 		log_card "ERROR: failed to remount recreated $CARD_DEV"
 		exec sh
 	}
 
 	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
 	log_card "[INITRAMFS] Restoring staged FAT contents..."
-	if ! RESTORE_OUT="$(cp -a "$STAGE"/. /mnt/card/ 2>&1)"; then
+	if ! RESTORE_OUT="$(cp -a "$STAGE"/. /mnt/sdcard/ 2>&1)"; then
 		log_card "ERROR: failed to restore FAT contents: ${RESTORE_OUT}"
 		exec sh
 	fi
 	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
-	BOOT_LOG_DIR="/mnt/card"
+	BOOT_LOG_DIR="/mnt/sdcard"
 
 	# Re-hide the system directories (mkfs.vfat resets the hidden attribute).
 	# Run via chroot into the EROFS system (its busybox has the fatattr applet).
-	# The EROFS has /mnt/sdcard (the post-switch_root mount point) but the card
-	# is currently mounted at /mnt/card in the initramfs; bind-mount it there so
-	# the paths resolve inside the chroot.
-	mount --bind /mnt/card /mnt/system/mnt/sdcard 2>/dev/null || true
+	mount --bind /mnt/sdcard /mnt/system/mnt/sdcard 2>/dev/null || true
 	chroot /mnt/system fatattr +h /mnt/sdcard/.minime 2>/dev/null || true
 	chroot /mnt/system fatattr +h /mnt/sdcard/.system 2>/dev/null || true
 	umount /mnt/system/mnt/sdcard 2>/dev/null || true
 
 	umount "$STAGE" 2>/dev/null || true
-	rm -f /mnt/card/.minime/config/first_boot_expand
+	rm -f /mnt/sdcard/.minime/config/first_boot_expand
 	sync
 
 	log_card "[INITRAMFS] Partition recreation successful. Rebooting..."
-	umount /mnt/card 2>/dev/null || true
+	umount /mnt/sdcard 2>/dev/null || true
 	reboot -f
 fi
 
 log_card "[INITRAMFS] Mounting EROFS system image..."
 mkdir -p /mnt/system
-if ! mount -t erofs -o loop,ro /mnt/card/.minime/system /mnt/system; then
-	log_card "ERROR: failed to mount /mnt/card/.minime/system"
+if ! mount -t erofs -o loop,ro /mnt/sdcard/.minime/system /mnt/system; then
+	log_card "ERROR: failed to mount /mnt/sdcard/.minime/system"
 	exec sh
 fi
 log_card "[INITRAMFS] EROFS system image mounted successfully."
@@ -281,7 +279,7 @@ fi
 # The time-of-day is deliberately omitted: the RTC wakes in the past, so
 # HHMMSS would be wrong or repeated across cold boots.  Runs after the clock
 # skew fix above so the date (and thus the 7-day prune via FAT mtime) is sane.
-LOGS_DIR="/mnt/card/.minime/logs"
+LOGS_DIR="/mnt/sdcard/.minime/logs"
 mkdir -p "${LOGS_DIR}"
 seq_date=""
 seq_num="0"
@@ -301,12 +299,12 @@ printf '%s %s\n' "${today}" "${seq_num}" >"${LOGS_DIR}/.seq"
 # boot.log, then point subsequent logging at the per-boot dir.
 BOOT_LOG_DIR="${LOGS_DIR}/${BOOT_ID}"
 mkdir -p "${BOOT_LOG_DIR}"
-if [ -f /mnt/card/.minime/boot.log ]; then
-	cat /mnt/card/.minime/boot.log >>"${BOOT_LOG_DIR}/boot.log" 2>/dev/null || true
+if [ -f /mnt/sdcard/.minime/boot.log ]; then
+	cat /mnt/sdcard/.minime/boot.log >>"${BOOT_LOG_DIR}/boot.log" 2>/dev/null || true
 fi
-if [ -f /mnt/card/boot.log ]; then
-	cat /mnt/card/boot.log >>"${BOOT_LOG_DIR}/boot.log" 2>/dev/null || true
-	rm -f /mnt/card/boot.log 2>/dev/null || true
+if [ -f /mnt/sdcard/boot.log ]; then
+	cat /mnt/sdcard/boot.log >>"${BOOT_LOG_DIR}/boot.log" 2>/dev/null || true
+	rm -f /mnt/sdcard/boot.log 2>/dev/null || true
 fi
 printf '%s\n' "${BOOT_ID}" >"${LOGS_DIR}/current"
 sync
@@ -328,6 +326,6 @@ log_card "[INITRAMFS] Moving mounts and switching root to /mnt/system..."
 mount -o move /sys /mnt/system/sys
 mount -o move /proc /mnt/system/proc
 mount -o move /dev /mnt/system/dev
-mount -o move /mnt/card /mnt/system/mnt/sdcard
+mount -o move /mnt/sdcard /mnt/system/mnt/sdcard
 
 exec switch_root /mnt/system /sbin/init
