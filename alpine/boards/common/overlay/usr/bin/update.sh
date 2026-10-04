@@ -284,7 +284,7 @@ unzstd -c "${ARCHIVE}" | tar -xf - -C "${SDCARD}"
 # Verify the payload landed before removing the archive.
 case "${UI}" in
 nextui | minui)
-	[ -f "${SDCARD}/.system/version.txt" ] ||
+	[ -f "${SDCARD}/.system/version.txt" ] || [ -f "${SDCARD}/.system/${TARGET}/version.txt" ] ||
 		die "install incomplete: .system/version.txt missing; leaving archive at ${ARCHIVE}"
 	;;
 allium)

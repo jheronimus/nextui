@@ -94,9 +94,8 @@ for s in device.sh log-boot.sh collect-diagnostics.sh audio.sh; do
 	fi
 done
 
-# 5. Point /etc/resolv.conf at openresolv's runtime output (iwd pushes the DHCP
-#    DNS servers to it via NameResolvingService=resolvconf).
-ln -sf /run/resolvconf/resolv.conf "${TARGET_DIR}/etc/resolv.conf"
+# 5. Point /etc/resolv.conf at /run/resolv.conf (tmpfs, rw).
+ln -sf /run/resolv.conf "${TARGET_DIR}/etc/resolv.conf"
 
 # 6. Marker used by initramfs-init.sh to advance system time on cold boot if the
 #    hardware RTC is in the past (prevents OpenRC clock skew warnings).

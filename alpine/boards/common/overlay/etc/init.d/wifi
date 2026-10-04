@@ -153,6 +153,13 @@ start() {
 	# Background worker: start udhcpc and sync NTP when connected
 	(
 		sleep 1
+		# Ensure DNS resolv.conf exists on tmpfs
+		mkdir -p /run/resolvconf
+		if [ ! -f /run/resolv.conf ]; then
+			printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' >/run/resolv.conf
+		fi
+		[ -e /run/resolvconf/resolv.conf ] || ln -sf /run/resolv.conf /run/resolvconf/resolv.conf
+
 		# Request DHCP lease in background
 		if command -v udhcpc >/dev/null 2>&1 && ! pgrep -f "udhcpc.*${wifi_interface}" >/dev/null 2>&1; then
 			udhcpc -i "${wifi_interface}" -b -p "${udhcpc_pidfile}" >/dev/null 2>&1 || true
