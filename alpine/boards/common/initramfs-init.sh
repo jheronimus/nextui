@@ -8,7 +8,7 @@ mount -t devtmpfs devtmpfs /dev
 # Single-owner backlight: set to max from sysfs before bootsplash
 for max_bl in /sys/class/backlight/*/max_brightness; do
 	if [ -r "$max_bl" ]; then
-		bl_dir="$(dirname "$max_bl")"
+		bl_dir="${max_bl%/*}"
 		if [ -w "$bl_dir/brightness" ]; then
 			cat "$max_bl" >"$bl_dir/brightness" 2>/dev/null || true
 		fi
