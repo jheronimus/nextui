@@ -14,7 +14,7 @@ start() {
 	ebegin "Starting bootsplash"
 	if [ -x /usr/bin/bootsplash ]; then
 		start-stop-daemon --start --background --make-pidfile \
-			--pidfile /run/bootsplash.pid --exec /usr/bin/bootsplash
+			--pidfile /run/bootsplash.pid --exec /usr/bin/bootsplash -- --persist
 	fi
 	eend $?
 }

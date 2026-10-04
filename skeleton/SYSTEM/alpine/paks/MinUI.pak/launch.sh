@@ -98,6 +98,11 @@ EXEC_PATH="/tmp/nextui_exec"
 NEXT_PATH="/tmp/next"
 touch "$EXEC_PATH" && sync
 
+if [ -f /run/bootsplash.pid ]; then
+	rc-service --ifstarted bootsplash stop >/dev/null 2>&1 || true
+fi
+killall bootsplash 2>/dev/null || true
+
 while [ -f "$EXEC_PATH" ]; do
 	nextui.elf &> "$LOGS_PATH/nextui.txt"
 

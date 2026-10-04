@@ -36,6 +36,7 @@
 #include <linux/vt.h>
 #include <drm/drm.h>
 #include <drm/drm_mode.h>
+#include <sys/klog.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
@@ -492,10 +493,10 @@ static void read_traits(int *key_up, int *key_down, int *screen_rot)
 
 int main(int argc, char **argv)
 {
-	bool persist = false;
+	bool persist = true;
 	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--persist") == 0)
-			persist = true;
+		if (strcmp(argv[i], "--no-persist") == 0 || strcmp(argv[i], "--clear") == 0)
+			persist = false;
 	}
 
 	struct sigaction sa = {
@@ -562,11 +563,12 @@ int main(int argc, char **argv)
 	time_t start_time = time(NULL);
 
 	while (g_running) {
-		if (access("/run/openrc/started/ui", F_OK) == 0)
+		if (access("/tmp/nextui_exec", F_OK) == 0)
 			break;
 		if (access("/run/openrc/failed/ui", F_OK) == 0) {
 			if (tty_fd >= 0)
 				ioctl(tty_fd, KDSETMODE, KD_TEXT);
+			klogctl(8, NULL, 7);
 			break;
 		}
 		if (time(NULL) - start_time > TIMEOUT_SECS)
@@ -593,10 +595,12 @@ int main(int argc, char **argv)
 					if (ev.code == key_vol_up && in_graphics_mode) {
 						if (tty_fd >= 0)
 							ioctl(tty_fd, KDSETMODE, KD_TEXT);
+						klogctl(8, NULL, 7);
 						in_graphics_mode = false;
 					} else if (ev.code == key_vol_down && !in_graphics_mode) {
 						if (tty_fd >= 0)
 							ioctl(tty_fd, KDSETMODE, KD_GRAPHICS);
+						klogctl(8, NULL, 1);
 						in_graphics_mode = true;
 						surf.mem = use_drm ? drm.bufs[drm.cur_buf].map : fb.mem;
 						load_and_draw_splash(&surf);

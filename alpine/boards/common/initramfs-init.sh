@@ -20,11 +20,10 @@ CARD_DEV=""
 BOOT_LOG_DIR="/mnt/sdcard"
 
 log_console() {
-	echo "$*"
+	:
 }
 
 log_card() {
-	echo "$*"
 	if [ -w "${BOOT_LOG_DIR}" ] 2>/dev/null; then
 		echo "[INITRAMFS $(date -u +'%T' 2>/dev/null || date 2>/dev/null || true)] $*" >>"${BOOT_LOG_DIR}/boot.log" 2>/dev/null || true
 		sync 2>/dev/null || true
@@ -32,13 +31,13 @@ log_card() {
 }
 
 run_fat_fsck() {
-	/sbin/fsck.fat -a "$CARD_DEV"
+	/sbin/fsck.fat -a "$CARD_DEV" >/dev/null 2>&1
 	FSCK_RC=$?
 }
 
 finish_card_mount() {
 	if ! mount -t vfat "$CARD_DEV" /mnt/sdcard 2>/dev/null; then
-		log_console "ERROR: failed to mount repaired FAT partition $CARD_DEV"
+		echo "ERROR: failed to mount repaired FAT partition $CARD_DEV" >/dev/console
 		exec sh
 	fi
 	[ -f /mnt/sdcard/.minime/system ] || {
@@ -105,7 +104,7 @@ for _i in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 if [ -z "$CARD_DEV" ]; then
-	log_console "ERROR: failed to mount a MINIME FAT partition"
+	echo "ERROR: failed to mount a MINIME FAT partition" >/dev/console
 	exec sh
 fi
 

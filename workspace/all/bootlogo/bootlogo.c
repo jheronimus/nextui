@@ -59,19 +59,8 @@ static SDL_Surface *rotatePreviewCW(SDL_Surface *src)
 
 int loadImages(void)
 {
-    // NEXTUI-ALPINE: check resolution folder first (e.g. 640x480), then fallback to logos
-    snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/%ix%i/", TOOLS_PATH, screen->w, screen->h);
-    if (access(basepath, R_OK) != 0) {
-        snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/logos/", TOOLS_PATH);
-    }
-    if (access(basepath, R_OK) != 0) {
-        char *device = getenv("DEVICE");
-        if (exactMatch("brick", device) || exactMatch("brickpro", device)) {
-            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/brick/", TOOLS_PATH);
-        } else {
-            snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/smartpro/", TOOLS_PATH);
-        }
-    }
+    // NEXTUI-ALPINE: load images directly from Bootlogo.pak directory
+    snprintf(basepath, sizeof(basepath), "%s/Bootlogo.pak/", TOOLS_PATH);
 
     DIR *dir;
     struct dirent *ent;

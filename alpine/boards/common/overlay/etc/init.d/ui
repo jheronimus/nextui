@@ -32,16 +32,11 @@ read_ui_env() {
 # --- OpenRC service ---
 
 depend() {
-	after modules fb-unblank traits gpudriver localmount udev udev-settle
+	after modules fb-unblank traits gpudriver localmount udev
 }
 
 start() {
 	ebegin "Starting UI"
-
-	# Stop bootsplash cleanly so OpenRC marks it stopped rather than crashed
-	if [ -f /run/bootsplash.pid ]; then
-		rc-service --ifstarted bootsplash stop >/dev/null 2>&1 || true
-	fi
 
 	dmesg -n 1 2>/dev/null || true
 
