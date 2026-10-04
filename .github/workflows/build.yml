@@ -82,6 +82,7 @@ jobs:
     env:
       BOARD: ${{ matrix.board }}
       FORCE_KERNEL_REBUILD: ${{ github.event.inputs.kernel == 'true' && '1' || '0' }}
+      COMPILE_CORES: 1
 
     steps:
       - name: Checkout
@@ -111,6 +112,15 @@ jobs:
             alpine-v2-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-
             alpine-v2-${{ matrix.board }}-${{ runner.arch }}-
 
+      - name: Restore cores cache
+        uses: actions/cache/restore@v4
+        id: cores-cache-restore
+        with:
+          path: workspace/alpine/cores/output
+          key: alpine-cores-${{ runner.arch }}-${{ hashFiles('workspace/alpine/cores/**', 'workspace/all/cores/**') }}
+          restore-keys: |
+            alpine-cores-${{ runner.arch }}-
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -124,8 +134,9 @@ jobs:
       - name: Fix cache permissions
         if: always()
         run: |
-          mkdir -p ~/alpine-ccache ~/alpine-dl ~/alpine-output/${{ matrix.board }}/packages
-          sudo chmod -R a+rX ~/alpine-ccache ~/alpine-dl ~/alpine-output 2>/dev/null || true
+          mkdir -p ~/alpine-ccache ~/alpine-dl ~/alpine-output/${{ matrix.board }}/packages workspace/alpine/cores/output
+          sudo chmod -R a+rX ~/alpine-ccache ~/alpine-dl ~/alpine-output workspace/alpine/cores/output 2>/dev/null || true
+          sudo chown -R $USER:$USER workspace/alpine/cores/output 2>/dev/null || true
 
       - name: Save cache
         uses: actions/cache/save@v4
@@ -136,6 +147,13 @@ jobs:
             ~/alpine-dl
             ~/alpine-output/${{ matrix.board }}/packages
           key: alpine-v2-${{ matrix.board }}-${{ runner.arch }}-${{ hashFiles('alpine/**/APKBUILD', 'alpine/boards/*/tiny-*.config') }}-${{ github.run_id }}
+
+      - name: Save cores cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: workspace/alpine/cores/output
+          key: alpine-cores-${{ runner.arch }}-${{ hashFiles('workspace/alpine/cores/**', 'workspace/all/cores/**') }}
 
       - name: Upload to Testing Release
         if: github.ref == 'refs/heads/main'
@@ -158,3 +176,7 @@ jobs:
               sleep 5
             done
           done
+          if [ -d workspace/alpine/cores/output ] && [ -n "$(ls -A workspace/alpine/cores/output/*_libretro.so 2>/dev/null)" ]; then
+            tar --zstd -cf nextui-alpine-cores.tar.zst -C workspace/alpine/cores/output .
+            gh release upload testing nextui-alpine-cores.tar.zst --clobber || true
+          fi

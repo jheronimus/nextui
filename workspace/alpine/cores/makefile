@@ -128,4 +128,14 @@ gearcoleco_BUILD_PATH = gearcoleco/platforms/libretro
 
 ###############################
 
+# Core output library names (mapping core name to its output file)
+core_target = $(if $($(1)_CORE),$($(1)_CORE),$(1)_libretro.so)
+
+# Skip cores that have already been compiled in output/
+ALL_CORES := $(CORES)
+CORES := $(foreach c,$(CORES),$(if $(wildcard output/$(call core_target,$(c))),,$(c)))
+
 include ../../all/cores/makefile
+
+clean: $(foreach CORE,$(ALL_CORES),clean-$(CORE))
+

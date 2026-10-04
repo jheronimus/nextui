@@ -138,6 +138,12 @@ tasks:
     cmds:
       - '{{.MAKE}} -C alpine payload-components'
 
+  cores:
+    desc: Compile the emulation cores for the alpine platform
+    cmds:
+      - '{{.MAKE}} -C alpine cores'
+
+
   system:
     desc: Assemble the compiled payload into build/
     cmds:

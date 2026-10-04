@@ -45,6 +45,7 @@ PODMAN_TTY := $(shell [ -t 0 ] && echo "-it" || echo "-i")
 
 SUPPORTED_BOARDS := h700 rk3566
 BOARD ?= h700
+COMPILE_CORES ?= 1
 
 # The builder image. Overridable so a fork can build its own.
 REGISTRY_IMAGE ?= ghcr.io/jheronimus/nextui-builder:latest
@@ -84,7 +85,8 @@ CONTAINER_ENV := -e 'CROSS_COMPILE=ccache ' -e 'CC=ccache gcc' -e 'CXX=ccache g+
 	-e UNION_PLATFORM=$(PLATFORM) \
 	-e ARCH=aarch64 \
 	-e SDKROOT=/ \
-	-e BOARD=$(BOARD)
+	-e BOARD=$(BOARD) \
+	-e COMPILE_CORES=$(COMPILE_CORES)
 
 # Runs a shell command inside the builder container.
 # Usage: $(call in_container,<shell command>)
@@ -94,7 +96,7 @@ define in_container
 		$(MOUNTS) $(CONTAINER_ENV) $(BUILDER_IMAGE) sh -c "$(1)"
 endef
 
-.PHONY: help payload payload-components system package components image builder clean
+.PHONY: help payload payload-components system package components image builder clean cores
 
 help:
 	@printf '%s\n' \
@@ -165,10 +167,14 @@ payload-components:
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametimectl PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/gametime PLATFORM=$(PLATFORM)
 	$(MAKE) -C $(WORKSPACE_DIR)/all/bootlogo PLATFORM=$(PLATFORM)
-ifdef COMPILE_CORES
+ifneq ($(COMPILE_CORES),0)
 	@echo "==> cores"
 	$(MAKE) -C $(PORT_DIR)/cores PLATFORM=$(PLATFORM)
 endif
+
+cores:
+	$(call in_container,$(MAKE) -C $(PORT_DIR)/cores PLATFORM=$(PLATFORM))
+
 
 # Assemble the compiled pieces into build/. This is our platform/makefile.copy,
 # replacing the ~50 hardcoded `cp` lines in NextUI's top-level makefile, which
