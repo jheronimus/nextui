@@ -137,5 +137,9 @@ CORES := $(foreach c,$(CORES),$(if $(wildcard output/$(call core_target,$(c))),,
 
 include ../../all/cores/makefile
 
+# Be forgiving with upstream whitespace and context line shifts in core patches
+PATCH = git apply --ignore-whitespace --ignore-space-change -C1
+
 clean: $(foreach CORE,$(ALL_CORES),clean-$(CORE))
+
 
