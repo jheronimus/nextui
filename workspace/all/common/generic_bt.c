@@ -581,6 +581,7 @@ void PLAT_bluetoothSetVolume(int vol) {
 
 // bt_device_watcher.c
 
+#include <stdlib.h>
 #include <sys/inotify.h>
 
 #define WATCHED_DIR_FMT "%s"
@@ -654,7 +655,12 @@ static void remove_file_watch() {
 }
 
 static void *watcher_thread_func(void *arg) {
-    char buffer[EVENT_BUF_LEN];
+    // NEXTUI-ALPINE: Heap-allocate buffer to avoid overflowing musl's default thread stack (272 KB buffer)
+    char *buffer = malloc(EVENT_BUF_LEN);
+    if (!buffer) {
+        LOG_error("watcher_thread_func: failed to allocate inotify buffer\n");
+        return NULL;
+    }
 
     // At start try to watch file if exists
     add_file_watch();
@@ -708,6 +714,7 @@ static void *watcher_thread_func(void *arg) {
         }
     }
 
+    free(buffer);
     return NULL;
 }
 
