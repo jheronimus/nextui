@@ -70,9 +70,7 @@ mednafen_supafaust_REPO = https://github.com/libretro/supafaust
 mgba_MAKE = sh -c 'cmake -B build -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_STATIC=OFF -DUSE_LIBZIP=OFF -DUSE_MINIZIP=OFF -DUSE_ZLIB=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a" && cmake --build build -j4 && cp build/mgba_libretro.so .' --
 
 pcsx_rearmed_MAKEFILE = Makefile.libretro
-
-
-
+pcsx_rearmed_FLAGS = USE_MINIZ=0
 
 # pcsx has a disabled submodule for gnulib, which takes forever to check out and is unused - skil checkout
 pcsx_rearmed_SUBMODULES = frontend/libpicofe
@@ -140,6 +138,9 @@ core_target = $(if $($(1)_CORE),$($(1)_CORE),$(1)_libretro.so)
 # Skip cores that have already been compiled in output/
 ALL_CORES := $(CORES)
 CORES := $(foreach c,$(CORES),$(if $(wildcard output/$(call core_target,$(c))),,$(c)))
+
+# Libretro cores use platform=unix for standard Linux shared objects
+override PLATFORM = unix
 
 include ../../all/cores/makefile
 
