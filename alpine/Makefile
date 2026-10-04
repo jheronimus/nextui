@@ -47,11 +47,7 @@ SUPPORTED_BOARDS := h700 rk3566
 BOARD ?= h700
 
 # The builder image. Overridable so a fork can build its own.
-#
-# Deliberately NOT registry-qualified. A ghcr.io/... name that is not present
-# locally makes the container engine try to pull it, and a build then fails with
-# an opaque 403 from the registry instead of the real cause. A bare local name
-# cannot be pulled, so a missing image is an obvious local error instead.
+REGISTRY_IMAGE ?= ghcr.io/jheronimus/nextui-builder:latest
 BUILDER_IMAGE ?= nextui-alpine-builder:local
 
 # On an arm64 host (GitHub's ubuntu-24.04-arm runner) passing --platform
@@ -211,11 +207,18 @@ image:
 		--payload-dir /nextui/releases \
 		--nextui-release "$(NEXTUI_RELEASE)")
 
-# Build with the same engine that `in_container` runs with. Hardcoding docker
-# here put the image in docker's store while PODMAN_CMD preferred podman, so the
-# run found nothing and tried to pull the image from a registry instead.
+# Build or pull the builder image. Pulls from GHCR by default if not present locally,
+# falling back to building locally if offline or registry is unavailable.
 builder:
-	$(PODMAN_CMD) build -t $(BUILDER_IMAGE) $(PLATFORM_ARGS) $(ALPINE_DIR)/container
+	@if [ -z "$$FORCE_BUILD_CONTAINER" ] && $(PODMAN_CMD) image inspect $(BUILDER_IMAGE) >/dev/null 2>&1; then \
+		echo "Builder image $(BUILDER_IMAGE) already exists locally"; \
+	elif [ -z "$$FORCE_BUILD_CONTAINER" ] && $(PODMAN_CMD) pull $(REGISTRY_IMAGE); then \
+		$(PODMAN_CMD) tag $(REGISTRY_IMAGE) $(BUILDER_IMAGE); \
+		echo "Pulled $(REGISTRY_IMAGE) and tagged as $(BUILDER_IMAGE)"; \
+	else \
+		echo "Building $(BUILDER_IMAGE) locally..."; \
+		$(PODMAN_CMD) build -t $(BUILDER_IMAGE) $(PLATFORM_ARGS) $(ALPINE_DIR)/container; \
+	fi
 
 clean:
 	rm -rf $(WORKSPACE_DIR)/build $(NEXTUI_ROOT)/releases
