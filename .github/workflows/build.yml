@@ -4,7 +4,6 @@ name: Build & Release NextUI
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
     paths:
       - 'alpine/**'
       - 'workspace/**'
@@ -22,10 +21,6 @@ on:
     inputs:
       kernel:
         description: Force a kernel rebuild
-        type: boolean
-        default: false
-      publish_release:
-        description: Publish as GitHub Release
         type: boolean
         default: false
 
@@ -163,52 +158,3 @@ jobs:
               sleep 5
             done
           done
-
-      - name: Upload image
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: nextui-alpine-${{ matrix.board }}
-          path: |
-            alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.img.zst
-            alpine/out/${{ matrix.board }}/nextui-alpine-${{ matrix.board }}.tar.zst
-          if-no-files-found: error
-          retention-days: 14
-
-
-  release:
-    name: Publish Release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set Release Tag
-        id: release-tag
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=dev-$(date +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          pattern: nextui-alpine-*
-          merge-multiple: true
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release-tag.outputs.tag }}
-          files: |
-            dist/*.img.zst
-            dist/*.tar.zst
-          generate_release_notes: true
-          make_latest: "true"
