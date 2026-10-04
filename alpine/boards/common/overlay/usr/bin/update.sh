@@ -308,7 +308,12 @@ migrate_roms
 # Clean up the archive before rebooting.
 rm -f "${ARCHIVE}"
 
-log "update installed; rebooting"
+log "update installed; flushing filesystem..."
 sync
+mount -o remount,ro "${SDCARD}" 2>/dev/null || true
+sync
+sleep 2
+
+log "rebooting"
 reboot
 exit 0
