@@ -67,9 +67,10 @@ gambatte_REPO = https://github.com/libretro/gambatte-libretro
 
 mednafen_supafaust_REPO = https://github.com/libretro/supafaust
 
-mgba_MAKE = sh -c 'cmake -B build -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_STATIC=OFF -DUSE_MINIZIP=OFF -DUSE_ZLIB=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a" && cmake --build build -j4 && cp build/mgba_libretro.so .' --
+mgba_MAKE = sh -c 'cmake -B build -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_STATIC=OFF -DUSE_LIBZIP=OFF -DUSE_MINIZIP=OFF -DUSE_ZLIB=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a" && cmake --build build -j4 && cp build/mgba_libretro.so .' --
 
 pcsx_rearmed_MAKEFILE = Makefile.libretro
+
 
 
 
