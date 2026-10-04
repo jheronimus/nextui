@@ -53,6 +53,8 @@ rm -rf "$SDCARD_PATH/.shadercache"
 export LD_LIBRARY_PATH="$SYSTEM_PATH/lib:/usr/lib:/lib:$LD_LIBRARY_PATH"
 export PATH="$SYSTEM_PATH/bin:/usr/bin:/bin:$PATH"
 
+amixer -q sset 'DAC' 100% unmute >/dev/null 2>&1 || true
+
 if [ -x "$SYSTEM_PATH/bin/governor.sh" ]; then
 	sh "$SYSTEM_PATH/bin/governor.sh" "auto"
 fi

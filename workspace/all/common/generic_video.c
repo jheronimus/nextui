@@ -650,8 +650,21 @@ SDL_Surface* PLAT_initVideo(void) {
 	int p = FIXED_PITCH;
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"1");
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER,"opengl");
 	SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION,"1");
+
+	// NEXTUI-ALPINE: Configure OpenGL ES attributes BEFORE creating the window so EGL chooses the proper GLES config
+	if(strcmp("Desktop", PLAT_getModel()) == 0) {
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER,"opengl");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	}
+	else {
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER,"opengles2");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	}
 
 	vid.window   = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w,h, SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
 	vid.renderer = SDL_CreateRenderer(vid.window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
@@ -665,19 +678,23 @@ SDL_Surface* PLAT_initVideo(void) {
 		LOG_info("- %s\n", SDL_GetPixelFormatName(info.texture_formats[i]));
 	}
 
-	if(strcmp("Desktop", PLAT_getModel()) == 0) {
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	}
-	else {
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	}
-
 	vid.gl_context = SDL_GL_CreateContext(vid.window);
-	SDL_GL_MakeCurrent(vid.window, vid.gl_context);
+	if (!vid.gl_context) {
+		LOG_warn("SDL_GL_CreateContext (GLES 3.0) failed: %s; trying GLES 2.0...\n", SDL_GetError());
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+		vid.gl_context = SDL_GL_CreateContext(vid.window);
+	}
+	if (!vid.gl_context) {
+		LOG_warn("SDL_GL_CreateContext failed: %s; falling back to current context\n", SDL_GetError());
+		vid.gl_context = SDL_GL_GetCurrentContext();
+	}
+	if (vid.gl_context) {
+		SDL_GL_MakeCurrent(vid.window, vid.gl_context);
+		LOG_info("GL context initialized successfully: %p\n", vid.gl_context);
+	} else {
+		LOG_error("FATAL: Failed to initialize any OpenGL context!\n");
+	}
 	glViewport(0, 0, w, h);
 
 	vid.stream_layer1 = SDL_CreateTexture(vid.renderer,SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w,h);

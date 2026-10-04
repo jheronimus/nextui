@@ -54,12 +54,12 @@ start() {
 		amixer sset "$audio_mixer" 100% unmute >/dev/null 2>&1 || true
 	fi
 
-	# Some codecs (sun4i/H616) keep a separate "DAC" pswitch that must be
-	# unmuted for sound to pass; the boot-time unmute covers it.
+	# Some codecs (sun4i/H616) keep a separate "DAC" pswitch and volume that must be
+	# unmuted and maxed for Line Out/Speaker volume to pass through.
 	if [ -n "$audio_card" ] && [ "$audio_card" != "default" ]; then
-		amixer -q -c "$audio_card" sset 'DAC' unmute >/dev/null 2>&1 || true
+		amixer -q -c "$audio_card" sset 'DAC' 100% unmute >/dev/null 2>&1 || true
 	else
-		amixer -q sset 'DAC' unmute >/dev/null 2>&1 || true
+		amixer -q sset 'DAC' 100% unmute >/dev/null 2>&1 || true
 	fi
 
 	export HOME=/mnt/sdcard
