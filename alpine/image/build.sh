@@ -180,6 +180,10 @@ if [ -d "${STAGE_DIR}/SYSTEM" ]; then
 	cp -a "${STAGE_DIR}/SYSTEM/." "${STAGE_DIR}/.system/"
 	rm -rf "${STAGE_DIR}/SYSTEM"
 fi
+if [ -d "${STAGE_DIR}/BASE" ]; then
+	cp -a "${STAGE_DIR}/BASE/." "${STAGE_DIR}/"
+	rm -rf "${STAGE_DIR}/BASE"
+fi
 if [ -d "${STAGE_DIR}/EXTRAS" ]; then
 	cp -a "${STAGE_DIR}/EXTRAS/." "${STAGE_DIR}/"
 	rm -rf "${STAGE_DIR}/EXTRAS"
