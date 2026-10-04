@@ -208,25 +208,24 @@ static int drm_init(struct drm_state *drm)
 	memset(drm, 0, sizeof(*drm));
 	drm->fd = -1;
 
+	struct drm_mode_card_res res = {0};
 	for (int i = 0; i < 4; i++) {
 		char path[32];
 		snprintf(path, sizeof(path), "/dev/dri/card%d", i);
 		int fd = open(path, O_RDWR | O_CLOEXEC);
-		if (fd >= 0) {
+		if (fd < 0)
+			continue;
+
+		memset(&res, 0, sizeof(res));
+		if (ioctl(fd, DRM_IOCTL_MODE_GETRESOURCES, &res) == 0 && res.count_connectors > 0) {
 			drm->fd = fd;
+			ioctl(drm->fd, DRM_IOCTL_SET_MASTER, 0);
 			break;
 		}
+		close(fd);
 	}
 	if (drm->fd < 0)
 		return -1;
-
-	ioctl(drm->fd, DRM_IOCTL_SET_MASTER, 0);
-
-	struct drm_mode_card_res res = {0};
-	if (ioctl(drm->fd, DRM_IOCTL_MODE_GETRESOURCES, &res) < 0 || res.count_connectors == 0) {
-		close(drm->fd);
-		return -1;
-	}
 
 	uint32_t *conns = calloc(res.count_connectors, sizeof(uint32_t));
 	uint32_t *crtcs = calloc(res.count_crtcs, sizeof(uint32_t));

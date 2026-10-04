@@ -1,7 +1,7 @@
 # shellcheck shell=sh disable=SC2034,SC2154,SC3043
 pkgname=bootsplash
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Direct DRM/KMS early bootsplash daemon"
 url="https://github.com/jheronimus/nextui"
 arch="aarch64"
@@ -23,7 +23,7 @@ package() {
 }
 
 sha512sums="
-d32913b1999aa3d1a5c73d5277ebf2c55262fe2abb44868622bd207b706661e838153c9d2d813cf02942c3de7055598233000c589fd4c4317fdcc4145fa53b38  bootsplash.c
+627fb689737a2124cdb07f67547c34c414be769854fa4e0fc77ce81f226afa491d1e79d077260af1617a09e938d11ae0ec8757ada79405d397c1e09edf3cf80b  bootsplash.c
 e221bc2dad33d759b87347d18e7491f712233a525b2bfcab71d647af407d5b09e00868d54c584da33cefc49450f22424471228781050370830120fd5bf89618d  Makefile
 3af21df0e71c553757ef3d8e3fb496f346212dc69e066b4646eb613a0d8120606e85e94db4cda63a1feb7f2d433f95b132e47e7c7b59d2698b48e8f22d5bda9d  stb_image.h
 "

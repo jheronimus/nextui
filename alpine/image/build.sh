@@ -218,14 +218,7 @@ cat <<JSON >"${STAGE_DIR}/.minime/manifest.json"
 }
 JSON
 
-# --- 3. Update package -------------------------------------------------------
-
-PKG_NAME="nextui-alpine-${BOARD}-${NEXTUI_RELEASE}"
-(cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 -T0 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
-cp -f "${OUTPUT_DIR}/${PKG_NAME}.tar.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.tar.zst"
-log_stage "update package: ${OUTPUT_DIR}/${PKG_NAME}.tar.zst"
-
-# --- 4. Boot script and device config ---------------------------------------
+# --- 3. Boot script and device config ---------------------------------------
 
 if [ -f "${COMMON_DIR}/boot.cmd" ] && [ -f "${BOARD_DIR}/boot.env" ]; then
 	BOOTARGS=""
@@ -249,6 +242,13 @@ default_splash="${NEXTUI_ROOT}/skeleton/EXTRAS/Tools/alpine/Bootlogo.pak/bootlog
 if [ -f "$default_splash" ]; then
 	cp -f "$default_splash" "${STAGE_DIR}/.minime/bootsplash.png"
 fi
+
+# --- 4. Update package -------------------------------------------------------
+
+PKG_NAME="nextui-alpine-${BOARD}-${NEXTUI_RELEASE}"
+(cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 -T0 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
+cp -f "${OUTPUT_DIR}/${PKG_NAME}.tar.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.tar.zst"
+log_stage "update package: ${OUTPUT_DIR}/${PKG_NAME}.tar.zst"
 
 # --- 5. Bootloader blobs -----------------------------------------------------
 
