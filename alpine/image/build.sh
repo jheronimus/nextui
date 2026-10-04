@@ -234,9 +234,7 @@ fi
 if [ -x "${COMMON_DIR}/scripts/device.sh" ]; then
 	"${COMMON_DIR}/scripts/device.sh" init-cfg "${STAGE_DIR}/.minime/config/device.cfg"
 fi
-touch "${STAGE_DIR}/.minime/config/first_boot_expand"
 echo 1 >"${STAGE_DIR}/.minime/config/bluetooth/enabled"
-
 # Default bootsplash from Bootlogo.pak presets
 default_splash="${NEXTUI_ROOT}/skeleton/EXTRAS/Tools/alpine/Bootlogo.pak/bootlogo.png"
 if [ -f "$default_splash" ]; then
@@ -249,6 +247,10 @@ PKG_NAME="nextui-alpine-${BOARD}-${NEXTUI_RELEASE}"
 (cd "$STAGE_DIR" && tar -cf - . | zstd -q -9 -T0 >"${OUTPUT_DIR}/${PKG_NAME}.tar.zst")
 cp -f "${OUTPUT_DIR}/${PKG_NAME}.tar.zst" "${OUTPUT_DIR}/nextui-alpine-${BOARD}.tar.zst"
 log_stage "update package: ${OUTPUT_DIR}/${PKG_NAME}.tar.zst"
+
+# --- 4b. Fresh disk image flags (not for OTA) --------------------------------
+# Raw images (.img.zst) need partition expansion on first boot; OTA updates must not.
+touch "${STAGE_DIR}/.minime/config/first_boot_expand"
 
 # --- 5. Bootloader blobs -----------------------------------------------------
 
