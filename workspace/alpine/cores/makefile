@@ -67,10 +67,10 @@ gambatte_REPO = https://github.com/libretro/gambatte-libretro
 
 mednafen_supafaust_REPO = https://github.com/libretro/supafaust
 
-mgba_MAKEFILE = Makefile.libretro
-mgba_HASH = 517e518c48e351def04042dc159064dd098830a9
+mgba_MAKE = sh -c 'cmake -B build -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_STATIC=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a" && cmake --build build -j4 && cp build/mgba_libretro.so .' --
 
 pcsx_rearmed_MAKEFILE = Makefile.libretro
+
 
 # pcsx has a disabled submodule for gnulib, which takes forever to check out and is unused - skil checkout
 pcsx_rearmed_SUBMODULES = frontend/libpicofe
