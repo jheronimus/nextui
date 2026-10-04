@@ -104,23 +104,23 @@ libretro-cap32_CORE = cap32_libretro.so
 
 c64_REPO  = https://github.com/libretro/vice-libretro
 c64_CORE  = vice_x64_libretro.so
-c64_FLAGS = EMUTYPE=x64
+c64_FLAGS = EMUTYPE=x64 CROSS_COMPILE=webos
 
 c128_REPO  = https://github.com/libretro/vice-libretro
 c128_CORE  = vice_x128_libretro.so
-c128_FLAGS = EMUTYPE=x128
+c128_FLAGS = EMUTYPE=x128 CROSS_COMPILE=webos
 
 vic_REPO  = https://github.com/libretro/vice-libretro
 vic_CORE  = vice_xvic_libretro.so
-vic_FLAGS = EMUTYPE=xvic
+vic_FLAGS = EMUTYPE=xvic CROSS_COMPILE=webos
 
 pet_REPO  = https://github.com/libretro/vice-libretro
 pet_CORE  = vice_xpet_libretro.so
-pet_FLAGS = EMUTYPE=xpet
+pet_FLAGS = EMUTYPE=xpet CROSS_COMPILE=webos
 
 plus4_REPO  = https://github.com/libretro/vice-libretro
 plus4_CORE  = vice_xplus4_libretro.so
-plus4_FLAGS = EMUTYPE=xplus4
+plus4_FLAGS = EMUTYPE=xplus4 CROSS_COMPILE=webos
 
 bluemsx_REPO = https://github.com/libretro/blueMSX-libretro
 bluemsx_CORE = bluemsx_libretro.so
