@@ -136,6 +136,10 @@ gearcoleco_BUILD_PATH = gearcoleco/platforms/libretro
 # Core output library names (mapping core name to its output file)
 core_target = $(if $($(1)_CORE),$($(1)_CORE),$(1)_libretro.so)
 
+# Cores to force rebuild even if present in cache
+REBUILD_CORES ?= gambatte gpsp pcsx_rearmed picodrive
+$(foreach c,$(REBUILD_CORES),$(shell rm -f output/$(call core_target,$(c))))
+
 # Skip cores that have already been compiled in output/
 ALL_CORES := $(CORES)
 CORES := $(foreach c,$(CORES),$(if $(wildcard output/$(call core_target,$(c))),,$(c)))
