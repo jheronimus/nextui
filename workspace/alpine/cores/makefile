@@ -64,19 +64,20 @@ fake-08_BUILD_PATH = fake-08/platform/libretro
 fceumm_REPO = https://github.com/libretro/libretro-fceumm
 
 gambatte_REPO = https://github.com/libretro/gambatte-libretro
+gambatte_MAKE = make HAVE_NETWORK=0 platform=unix
+
+gpsp_MAKE = make platform=arm64
 
 mednafen_supafaust_REPO = https://github.com/libretro/supafaust
 
 mgba_MAKE = sh -c 'cmake -B build -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_STATIC=OFF -DUSE_LIBZIP=OFF -DUSE_MINIZIP=OFF -DUSE_ZLIB=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-mtune=cortex-a53 -mcpu=cortex-a53 -march=armv8-a" && cmake --build build -j4 && cp build/mgba_libretro.so .' --
 
-pcsx_rearmed_MAKEFILE = Makefile.libretro
-pcsx_rearmed_FLAGS = USE_MINIZ=0 DYNAREC=ari64 BUILTIN_GPU=neon
-
+pcsx_rearmed_MAKE = make -f Makefile.libretro platform=arm64 USE_MINIZ=0 DYNAREC=ari64 BUILTIN_GPU=neon
 # pcsx has a disabled submodule for gnulib, which takes forever to check out and is unused - skil checkout
 pcsx_rearmed_SUBMODULES = frontend/libpicofe
 
 picodrive_REPO = https://github.com/irixxxx/picodrive
-picodrive_MAKEFILE = Makefile.libretro
+picodrive_MAKE = make -f Makefile.libretro platform=arm64 PLATFORM=libretro
 # No background Audio on Sega CD
 # https://github.com/LoveRetro/NextUI/issues/68
 picodrive_HASH = b0be121b7d58d6ee1ee2809974e62893c80a8264
