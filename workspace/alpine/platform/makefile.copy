@@ -75,9 +75,9 @@ $(PLATFORM):
 		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Game Tracker.pak"; \
 		cp -f $(A)/gametime/build/$(PLATFORM)/gametime.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Game Tracker.pak/"; \
 	fi
-	@if [ -f $(A)/bootlogo/build/$(PLATFORM)/bootlogo.elf ]; then \
+	@if [ -f $(P)/bootlogo/build/$(PLATFORM)/bootlogo.elf ]; then \
 		mkdir -p "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Bootlogo.pak"; \
-		cp -f $(A)/bootlogo/build/$(PLATFORM)/bootlogo.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Bootlogo.pak/"; \
+		cp -f $(P)/bootlogo/build/$(PLATFORM)/bootlogo.elf "$(BUILD)/EXTRAS/Tools/$(PLATFORM)/Bootlogo.pak/"; \
 	fi
 
 	@echo "==> runtime libraries"
