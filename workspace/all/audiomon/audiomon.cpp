@@ -23,8 +23,7 @@ extern "C"
 #include "defines.h"
 }
 
-// NEXTUI-ALPINE: Use SDCARD_PATH instead of hardcoded /mnt/SDCARD
-#define AUDIO_FILE SDCARD_PATH "/.userdata/" PLATFORM "/.asoundrc"
+#define AUDIO_FILE "/mnt/SDCARD/.userdata/" PLATFORM "/.asoundrc"
 #define UUID_A2DP "0000110b-0000-1000-8000-00805f9b34fb"
 
 enum DeviceType {

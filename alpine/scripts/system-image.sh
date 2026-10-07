@@ -66,6 +66,7 @@ umount -f -R "${TARGET_DIR}/dev" 2>/dev/null || umount -lf "${TARGET_DIR}/dev" 2
 (cd "${TARGET_DIR}" && tar -cf - --exclude='./proc/*' --exclude='./sys/*' --exclude='./dev/*' .) |
 	(cd "${EROF_STAGE}" && tar -xf -)
 mkdir -p "${EROF_STAGE}/mnt/sdcard"
+ln -sf sdcard "${EROF_STAGE}/mnt/SDCARD"
 mkfs.erofs -z lz4hc "${BINARIES_DIR}/system.erofs" "${EROF_STAGE}"
 rm -rf "${EROF_STAGE}"
 

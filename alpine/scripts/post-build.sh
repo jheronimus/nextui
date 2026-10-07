@@ -101,4 +101,8 @@ ln -sf /run/resolv.conf "${TARGET_DIR}/etc/resolv.conf"
 #    hardware RTC is in the past (prevents OpenRC clock skew warnings).
 touch "${TARGET_DIR}/.build_time"
 
+# 7. Create /mnt/SDCARD compatibility symlink for upstream paths.
+mkdir -p "${TARGET_DIR}/mnt/sdcard"
+ln -sf sdcard "${TARGET_DIR}/mnt/SDCARD"
+
 echo "Alpine post-build stage complete."
