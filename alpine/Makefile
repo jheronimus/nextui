@@ -86,7 +86,8 @@ CONTAINER_ENV := -e 'CROSS_COMPILE=ccache ' -e 'CC=ccache gcc' -e 'CXX=ccache g+
 	-e ARCH=aarch64 \
 	-e SDKROOT=/ \
 	-e BOARD=$(BOARD) \
-	-e COMPILE_CORES=$(COMPILE_CORES)
+	-e COMPILE_CORES=$(COMPILE_CORES) \
+	-e CMAKE_TOOLCHAIN_FILE=/nextui/workspace/alpine/platform/toolchain.cmake
 
 # Runs a shell command inside the builder container.
 # Usage: $(call in_container,<shell command>)
