@@ -320,11 +320,11 @@ namespace {
         }
 
         bool hasWifi() const {
-            return m_platform == tg5050 || m_platform == tg5040 || m_platform == my355;
+            return PLAT_hasWifi() || m_platform == tg5050 || m_platform == tg5040 || m_platform == my355;
         }
 
         bool hasBluetooth() const {
-            return m_platform == tg5050 || m_platform == tg5040 || m_platform == my355;
+            return PLAT_hasBluetooth() || m_platform == tg5050 || m_platform == tg5040 || m_platform == my355;
         }
 
     private:
